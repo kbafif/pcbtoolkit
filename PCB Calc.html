@@ -1,0 +1,2660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PCB Calc</title>
+<style>
+:root{
+  --bg:#fbf6e4; --surface:#fffdf6; --border:#e6dcb8; --text:#263320; --text-dim:#6d7357;
+  --accent:#2e7d4f; --accent-dim:#e3eed5; --danger:#c0392b; --ok:#2e7d4f; --flash:#ffe58a;
+  --gold:#f2b705; --gold-dim:#e9d996; --hexink:#3a2a00; --scrub-ink:#1d2a10;
+  --radius:6px; --shadow:none;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121812; --surface:#1a221a; --border:#2e3a2a; --text:#ece9d6; --text-dim:#a2a88c;
+    --accent:#5cbf80; --accent-dim:#24361f; --flash:#5f4d10; --shadow:none;
+    --gold:#e3ac0b; --gold-dim:#6b5a1c; --hexink:#241a00;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121812; --surface:#1a221a; --border:#2e3a2a; --text:#ece9d6; --text-dim:#a2a88c;
+  --accent:#5cbf80; --accent-dim:#24361f; --flash:#5f4d10; --shadow:none;
+  --gold:#e3ac0b; --gold-dim:#6b5a1c; --hexink:#241a00;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+#app{min-height:100%;display:flex;flex-direction:column}
+#app-header{
+  position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;
+  padding:10px 18px;padding-top:calc(10px + env(safe-area-inset-top,0px));
+  background:var(--surface);border-bottom:1px solid var(--border);
+}
+.icon-btn{
+  background:none;border:none;color:var(--text);cursor:pointer;font-size:20px;
+  width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{background:var(--accent-dim)}
+.icon-btn.hidden-btn{visibility:hidden}
+.brand{display:flex;align-items:baseline;gap:8px;font-size:15px}
+.brand-name{font-weight:600}
+.brand-sep{color:var(--text-dim)}
+.brand-sub{font-weight:600}
+.brand-sub .dirty{color:var(--accent);margin-left:2px}
+#app-main{flex:1;padding:22px;max-width:1400px;width:100%;margin:0 auto}
+
+/* Index: see honeycomb styles below */
+
+/* Calculator page layout */
+.calc-page{display:flex;flex-direction:column;gap:16px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab-btn{
+  background:none;border:none;padding:9px 14px;font-size:13px;color:var(--text-dim);cursor:pointer;
+  border-bottom:2px solid transparent;font-family:inherit;
+}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab-btn:hover{color:var(--text)}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 4px}
+.subtab-btn{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px;
+  font-size:12px;cursor:pointer;color:var(--text-dim);font-family:inherit;
+}
+.subtab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.calc-columns{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+@media (max-width:900px){.calc-columns{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.panel h3{margin:0 0 12px;font-size:14px}
+.side-panel{font-size:13px;color:var(--text-dim);line-height:1.5}
+.side-panel h4{margin:14px 0 6px;font-size:12.5px;color:var(--text);text-transform:uppercase;letter-spacing:.4px}
+.side-panel h4:first-child{margin-top:0}
+
+.field-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.field-label{width:150px;flex-shrink:0;font-size:13px;color:var(--text-dim)}
+.field-input{
+  flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);
+  color:var(--text);font-size:13.5px;font-family:inherit;transition:background .25s ease;
+}
+.field-input:focus{outline:none;border-color:var(--accent)}
+.field-input[readonly]{cursor:default}
+.field-unit{
+  padding:7px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);
+  font-size:12.5px;font-family:inherit;
+}
+.field-remove{
+  background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;width:26px;flex-shrink:0;
+}
+.field-remove:hover{color:var(--danger)}
+.flash{background:var(--flash) !important}
+.add-row-btn{
+  background:none;border:1px dashed var(--border);border-radius:7px;color:var(--accent);
+  padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:2px;
+}
+.add-row-btn:hover{border-color:var(--accent)}
+.output-block{
+  background:var(--accent-dim);border-radius:8px;padding:10px 14px;margin-top:6px;
+}
+.output-block .field-label{color:var(--text)}
+hr.sep{border:none;border-top:1px solid var(--border);margin:14px 0}
+
+.formula{font-size:15px;margin:6px 0 10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;margin:0 2px;line-height:1.15}
+.frac .num{padding:0 3px 1px;border-bottom:1.4px solid currentColor}
+.frac .den{padding:1px 3px 0}
+sub,sup{font-size:70%}
+.placeholder{padding:60px 20px;text-align:center;color:var(--text-dim)}
+
+/* Confirm dialog */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:100;
+}
+.overlay.hidden{display:none}
+.confirm-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;
+  width:320px;box-shadow:var(--shadow);
+}
+.confirm-box p{margin:0 0 16px;font-size:14px}
+.confirm-actions{display:flex;justify-content:flex-end;gap:8px}
+.confirm-actions button{
+  border:none;border-radius:7px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;
+}
+#confirm-save{background:var(--accent);color:#fff}
+#confirm-discard{background:var(--bg);color:var(--danger);border:1px solid var(--border) !important}
+#confirm-cancel{background:var(--bg);color:var(--text);border:1px solid var(--border) !important}
+/* Number inputs: no spinner arrows */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* Scrub handle: drag horizontally over it to change the value */
+.scrub{
+  width:36px;height:30px;flex-shrink:0;border-radius:6px;cursor:ew-resize;touch-action:none;position:relative;
+  background:repeating-linear-gradient(90deg,transparent 0 3px,rgba(0,0,0,.13) 3px 4px),linear-gradient(90deg,var(--accent),var(--gold));
+  transition:filter .15s,transform .15s;animation:scrubring 1.4s ease .4s 2;
+}
+.scrub::before,.scrub::after{content:"";position:absolute;top:50%;width:0;height:0;border:5px solid transparent;transform:translateY(-50%)}
+.scrub::before{left:2px;border-right-color:var(--scrub-ink);border-left-width:0}
+.scrub::after{right:2px;border-left-color:var(--scrub-ink);border-right-width:0}
+.scrub:hover{filter:brightness(1.12)}
+.scrub.active{transform:scaleY(1.12);filter:brightness(1.2)}
+@keyframes scrubring{0%{box-shadow:0 0 0 0 var(--gold)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* Honeycomb index */
+.hive{margin:0 auto}
+#app-main:has(.hive){display:flex;align-items:center;justify-content:center}
+.hive{margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;max-width:900px;width:100%}
+#app-main:has(.hive){display:flex;align-items:center;justify-content:center}
+.hex{
+  aspect-ratio:1;border-radius:18px;
+  background:var(--gold);color:var(--hexink);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;padding:0 16px;text-align:center;cursor:pointer;transition:background .15s,color .15s;
+}
+.hex:hover{background:var(--accent);color:#fff}
+.hex.disabled{background:var(--gold-dim);opacity:.55;cursor:default}
+.hex.disabled:hover{background:var(--gold-dim);color:var(--hexink)}
+.hex svg{width:34px;height:34px}
+.hex-title{font-size:13px;font-weight:600;line-height:1.2}
+
+/* Theme slider */
+.theme-toggle{position:relative;display:inline-block;cursor:pointer;flex-shrink:0}
+.theme-toggle input{position:absolute;opacity:0;width:0;height:0}
+.theme-toggle .track{display:flex;align-items:center;justify-content:space-between;width:56px;height:28px;padding:0 6px;border-radius:14px;background:var(--accent-dim);border:1px solid var(--border);position:relative;color:var(--text-dim)}
+.theme-toggle .track svg{width:14px;height:14px;z-index:1}
+.theme-toggle .knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--gold);transition:transform .2s ease}
+.theme-toggle input:checked + .track .knob{transform:translateX(28px)}
+.theme-toggle input:focus-visible + .track{outline:2px solid var(--accent)}
+
+/* Header search */
+.header-search{flex:1;display:flex;justify-content:center;min-width:0;padding:0 8px}
+.search-box{position:relative;width:100%;max-width:420px}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none}
+#search-input{
+  width:100%;padding:7px 12px 7px 32px;border-radius:20px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;
+}
+#search-input:focus{outline:none;border-color:var(--accent)}
+.search-dropdown{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;box-shadow:var(--shadow);max-height:360px;overflow-y:auto;z-index:50;text-align:left;
+}
+.search-dropdown.hidden{display:none}
+.search-row{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:13px}
+.search-row:hover{background:var(--accent-dim)}
+.search-row .sr-icon{color:var(--text-dim);flex-shrink:0;display:flex}
+.search-row .sr-main{font-weight:600;color:var(--text)}
+.search-row .sr-sub{color:var(--text-dim);font-size:11.5px;margin-top:1px}
+.search-row .sr-del{margin-left:auto;background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 7px;border-radius:4px;font-size:15px;flex-shrink:0}
+.search-row .sr-del:hover{color:var(--danger);background:var(--bg)}
+.search-hist-head{display:flex;align-items:center;padding:9px 12px 3px;font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px}
+.search-hist-head button{margin-left:auto;background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;font-family:inherit;text-transform:none;letter-spacing:0}
+.search-empty{padding:18px 12px;color:var(--text-dim);font-size:12.5px;text-align:center}
+@media (max-width:760px){ .header-search{display:none} }
+
+/* Generic on/off switch */
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .slider{position:absolute;inset:0;border-radius:12px;background:var(--border);transition:background .2s}
+.switch .slider::before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.switch input:checked + .slider{background:var(--accent)}
+.switch input:checked + .slider::before{transform:translateX(20px);background:var(--gold)}
+.switch input:focus-visible + .slider{outline:2px solid var(--accent)}
+
+/* Index groups */
+.hive-wrap{width:100%}
+.group-title{text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin:18px 0 12px}
+.hive-wrap .group-title:first-child{margin-top:0}
+
+/* Pinout tables */
+.pin-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+.pin-table th,.pin-table td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--border)}
+.pin-table th{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px}
+.pin-table tr:nth-child(even) td{background:var(--bg)}
+.pin-table td:first-child{font-weight:600;color:var(--accent)}
+
+/* Stackup builder */
+.sk-card{border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:14px;cursor:pointer;transition:border-color .15s}
+.sk-card:hover{border-color:var(--accent)}
+.sk-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:10px;flex-wrap:wrap}
+.sk-card-head strong{font-size:13.5px}
+.sk-meta{font-size:11.5px;color:var(--text-dim)}
+.sk-diagram{border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.sk-layer{display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:11px;color:#fff;border-bottom:1px solid rgba(0,0,0,.18)}
+.sk-layer:last-child{border-bottom:none}
+.sk-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin:8px 0 4px}
+.sk-legend span{display:inline-flex;align-items:center;gap:5px}
+.sk-legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+
+/* Stackup / Dielectric: Digikey-style facet sidebar */
+.sk-filter-layout{display:grid;grid-template-columns:230px 1fr;gap:18px;align-items:start}
+@media (max-width:820px){.sk-filter-layout{grid-template-columns:1fr}}
+.sk-filter-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;position:sticky;top:70px}
+.sk-filter-group{margin-bottom:16px}
+.sk-filter-group h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim)}
+.sk-filter-opt{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;cursor:pointer}
+.sk-filter-opt input{accent-color:var(--accent);flex-shrink:0}
+.sk-filter-opt.disabled{opacity:.38;cursor:default}
+.sk-filter-opt .sk-count{margin-left:auto;font-size:11px;color:var(--text-dim)}
+.sk-results-panel{min-width:0}
+.sk-modal-box{width:min(880px,92vw);max-height:86vh;overflow-y:auto}
+.sk-layer-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.sk-layer-num{width:16px;font-size:11px;color:var(--text-dim);text-align:right;flex-shrink:0}
+.sk-btn{border-radius:7px;padding:8px 14px;cursor:pointer;font-size:13px;font-family:inherit;border:1px solid var(--border)}
+.sk-btn-primary{background:var(--accent);color:#fff;border:none}
+.sk-btn-danger{background:var(--bg);color:var(--danger)}
+.sk-btn-plain{background:var(--bg);color:var(--text)}
+.sk-imp-table{width:100%;border-collapse:collapse;font-size:13px}
+.sk-imp-table th,.sk-imp-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)}
+.sk-imp-table th{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px}
+.sk-imp-table td:first-child{font-weight:600}
+.sk-imp-table td.na{color:var(--text-dim);font-style:italic}
+
+/* Dielectric spec table */
+.spec-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.spec-table th,.spec-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.spec-table th{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0;background:var(--surface)}
+.spec-table td:first-child,.spec-table th:first-child{position:sticky;left:0;background:var(--surface);white-space:normal}
+.spec-table tr.grp td{background:var(--accent-dim);color:var(--accent);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;position:static}
+.spec-table tr.key td:first-child{font-weight:700;color:var(--text)}
+.spec-table tr.key td{background:var(--flash)}
+
+/* Index groups */
+/* Pinout tables */
+.pin-table{width:100%;border-collapse:collapse;font-size:13px}
+.pin-table th{text-align:left;color:var(--text-dim);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border)}
+.pin-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.pin-dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+.t-p{background:#c0392b}.t-g{background:#7b8060}.t-s{background:var(--accent)}.t-c{background:var(--gold)}.t-n{background:var(--border)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12px;color:var(--text-dim)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="app-header">
+    <label class="theme-toggle"><input type="checkbox" id="theme-switch" aria-label="Dark mode"><span class="track">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>
+      <span class="knob"></span></span></label>
+    <button id="back-btn" class="icon-btn hidden-btn" aria-label="Back">&#8592;</button>
+    <div class="brand"><span class="brand-name">PCB Calc</span><span class="brand-sep" id="brand-sep">|</span><span class="brand-sub" id="brand-sub"></span></div>
+    <div class="header-search">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="search-input" type="text" placeholder="Search calculators, tabs…" autocomplete="off" spellcheck="false">
+        <div id="search-dropdown" class="search-dropdown hidden"></div>
+      </div>
+    </div>
+    <button id="settings-btn" class="icon-btn" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+  <main id="app-main"></main>
+</div>
+
+<div id="confirm-overlay" class="overlay hidden">
+  <div class="confirm-box">
+    <p id="confirm-text">You have unsaved changes. Save before leaving?</p>
+    <div class="confirm-actions">
+      <button id="confirm-save">Save</button>
+      <button id="confirm-discard">Discard</button>
+      <button id="confirm-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="settings-overlay" class="overlay hidden">
+  <div class="confirm-box" style="width:360px">
+    <div style="display:flex;align-items:center;margin-bottom:16px">
+      <strong style="font-size:15px">Settings</strong>
+      <button id="settings-close" class="icon-btn" style="margin-left:auto" aria-label="Close">&times;</button>
+    </div>
+    <div class="field-row" style="margin:0 0 16px">
+      <div class="field-label" style="flex:1;color:var(--text)">Autosave</div>
+      <label class="switch"><input type="checkbox" id="autosave-switch"><span class="slider"></span></label>
+    </div>
+    <hr class="sep">
+    <div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:8px">Backup &amp; Restore</div>
+    <div style="display:flex;gap:8px">
+      <button id="settings-export" class="add-row-btn" style="flex:1">Download Backup</button>
+      <label class="add-row-btn" style="flex:1;text-align:center;cursor:pointer;margin:0">Restore from File
+        <input type="file" id="settings-import" accept="application/json" style="display:none">
+      </label>
+    </div>
+    <p style="font-size:11.5px;color:var(--text-dim);margin-top:8px">Includes all saved calculator values, custom stackups, and settings. Restoring replaces everything currently saved on this device.</p>
+  </div>
+</div>
+
+<div id="stackup-info-overlay" class="overlay hidden">
+  <div class="confirm-box sk-modal-box">
+    <div style="display:flex;align-items:center;margin-bottom:14px">
+      <strong id="sk-modal-title" style="font-size:15px"></strong>
+      <button id="sk-modal-close" class="icon-btn" style="margin-left:auto" aria-label="Close">&times;</button>
+    </div>
+    <div class="calc-columns" id="sk-modal-body"></div>
+  </div>
+</div>
+
+<div id="stackup-editor-overlay" class="overlay hidden">
+  <div class="confirm-box sk-modal-box">
+    <div style="display:flex;align-items:center;margin-bottom:14px">
+      <strong id="skb-title" style="font-size:15px">New Stackup</strong>
+      <button id="skb-close" class="icon-btn" style="margin-left:auto" aria-label="Close">&times;</button>
+    </div>
+    <div id="skb-body"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   SECTION: UNIT CONVERSION
+========================================================= */
+const UNIT_DEFS = {
+  resistance:{units:{'μΩ':1e-6,'mΩ':1e-3,'Ω':1,'kΩ':1e3,'MΩ':1e6}, def:'Ω'},
+  capacitance:{units:{'pF':1e-12,'nF':1e-9,'µF':1e-6,'mF':1e-3,'F':1}, def:'nF'},
+  inductance:{units:{'nH':1e-9,'µH':1e-6,'mH':1e-3,'H':1}, def:'µH'},
+  voltage:{units:{'µV':1e-6,'mV':1e-3,'V':1,'kV':1e3}, def:'V'},
+  current:{units:{'µA':1e-6,'mA':1e-3,'A':1}, def:'A'},
+  power:{units:{'mW':1e-3,'W':1,'kW':1e3}, def:'W'},
+  length:{units:{'µm':0.001,'mil':0.0254,'mm':1,'cm':10,'in':25.4,'m':1000}, def:'mm'},
+  frequency:{units:{'Hz':1,'kHz':1e3,'MHz':1e6,'GHz':1e9}, def:'MHz'},
+  time:{units:{'ps':1e-12,'ns':1e-9,'µs':1e-6,'ms':1e-3,'s':1,'min':60}, def:'s'},
+  angle:{units:{'°':1,'rad':180/Math.PI}, def:'°'},
+  temperature:{units:{'°C':1,'°F':1,'K':1}, def:'°C'}, // multipliers unused; conversion is offset-based, see tempToBase/tempFromBase
+};
+function tempToBase(value, unit){ // returns Celsius
+  if(unit==='°F') return (value-32)*5/9;
+  if(unit==='K') return value-273.15;
+  return value;
+}
+function tempFromBase(valueC, unit){ // Celsius -> target unit
+  if(unit==='°F') return valueC*9/5+32;
+  if(unit==='K') return valueC+273.15;
+  return valueC;
+}
+// Fields without a unit category (e.g. dimensionless ratios) pass through unconverted.
+function toBase(value, unit, cat){
+  if(cat==='temperature') return tempToBase(value, unit);
+  if(!cat || !UNIT_DEFS[cat]) return value;
+  return value * UNIT_DEFS[cat].units[unit];
+}
+function fromBase(value, unit, cat){
+  if(cat==='temperature') return tempFromBase(value, unit);
+  if(!cat || !UNIT_DEFS[cat]) return value;
+  return value / UNIT_DEFS[cat].units[unit];
+}
+function fmt(n){
+  if(!isFinite(n)) return '—';
+  if(n===0) return '0';
+  const a=Math.abs(n);
+  if(a>=1e6||a<1e-4) return n.toExponential(4);
+  return parseFloat(n.toPrecision(6)).toString();
+}
+
+/* =========================================================
+   SECTION: STATE MANAGEMENT (per-calculator data + dirty flag)
+========================================================= */
+const Store = {
+  load(id){
+    try{ const raw=localStorage.getItem('pcbcalc:'+id); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+  },
+  save(id, data){
+    try{ localStorage.setItem('pcbcalc:'+id, JSON.stringify(data)); return true; }catch(e){ return false; }
+  }
+};
+const Settings = Object.assign({ autosave:false }, Store.load('settings') || {});
+const App = {
+  currentId:null,
+  dirty:false,
+  pendingNav:null,
+  markDirty(v){
+    if(v && Settings.autosave){
+      const m = CalculatorModules[this.currentId];
+      if(m && m.save){ m.save(); v = false; }
+    }
+    this.dirty = v;
+    renderTitle();
+  }
+};
+function renderTitle(){
+  const meta = CALCULATORS.find(c=>c.id===App.currentId);
+  const sep = document.getElementById('brand-sep');
+  const sub = document.getElementById('brand-sub');
+  if(!meta){
+    sep.style.display='none';
+    sub.style.display='none';
+    sub.innerHTML='';
+    return;
+  }
+  sep.style.display='';
+  sub.style.display='';
+  sub.innerHTML = meta.title + (App.dirty?'<span class="dirty">*</span>':'');
+}
+function flashEl(el){
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'), 350);
+}
+
+/* =========================================================
+   SECTION: REGISTRY (all calculators shown on index)
+========================================================= */
+const ICONS = {
+  ohm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18h3v-3a5 5 0 1 1 10 0v3h3"/></svg>',
+  gauge:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="7"/><path d="M12 13l3-3M5 4l1.5 1.5M19 4l-1.5 1.5"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+  wave:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/></svg>',
+  ruler:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 8v3M11 8v3M15 8v3"/></svg>',
+  via:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>',
+  track:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h4l6-6V8l2-2"/></svg>',
+  impedance:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>',
+  bandwidth:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M21 20V13"/></svg>',
+  convert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10l-3-3M17 17H7l3 3"/></svg>',
+  crystal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h5M17 12h5M7 6v12M17 6v12"/><rect x="10" y="7" width="4" height="10"/></svg>',
+  rf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20V10"/><circle cx="12" cy="6.5" r="1.6" fill="currentColor" stroke="none"/><path d="M8.2 10a5.3 5.3 0 0 1 7.6 0M5.2 6.7a9.6 9.6 0 0 1 13.6 0"/></svg>',
+};
+const CALCULATORS = [
+  {id:'ohms-law', title:'Ohm\'s Law', sub:'V, I, R, LED bias, series/parallel', icon:ICONS.ohm, ready:true},
+  {id:'epsilon-r', title:'Epsilon r', sub:'Dielectric constant', icon:ICONS.gauge, ready:true},
+  {id:'fusing-current', title:'Fusing Current', sub:'Onderdonk\'s equation', icon:ICONS.bolt, ready:true},
+  {id:'wavelength', title:'Wavelength', sub:'Frequency ↔ wavelength', icon:ICONS.wave, ready:true},
+  {id:'creepage', title:'Creepage Distance', sub:'Clearance & creepage', icon:ICONS.ruler, ready:true},
+  {id:'via', title:'Via Properties', sub:'Resistance, current, temp rise', icon:ICONS.via, ready:true},
+  {id:'trace-width', title:'Track & Plane Width', sub:'Current capacity & temp rise', icon:ICONS.track, ready:true},
+  {id:'transmission-line', title:'Transmission Line Z', sub:'Single & differential', icon:ICONS.impedance, ready:true},
+  {id:'bandwidth', title:'Bandwidth & Length', sub:'Max conductor length', icon:ICONS.bandwidth, ready:true},
+  {id:'conversion', title:'Conversion', sub:'Units, dB, rect ↔ polar', icon:ICONS.convert, ready:true},
+  {id:'crystal', title:'Crystal', sub:'Load cap & ppm', icon:ICONS.crystal, ready:true},
+  {id:'rf', title:'RF', sub:'VSWR, return loss, power', icon:ICONS.rf, ready:true},
+  {id:'e-series', title:'E-Series Resistors', group:'toolbox', ready:true,
+   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 12h4l2-6 4 12 2-6h8"/></svg>'},
+  {id:'cap-decoder', title:'Capacitor Decoder', group:'toolbox', ready:true,
+   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h7M15 12h7M9 5v14M15 5v14"/></svg>'},
+  {id:'pinouts', title:'Pinout Library', group:'toolbox', ready:true,
+   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M7 10v4M10 10v4M13 10v4M16 10v4"/></svg>'},
+  {id:'stackup', title:'Stackup', group:'toolbox', ready:true,
+   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="18" height="3" rx="0.5"/><rect x="3" y="8" width="18" height="5" rx="0.5"/><rect x="3" y="14.5" width="18" height="3" rx="0.5"/><rect x="3" y="19" width="18" height="1.5" rx="0.5"/></svg>'},
+];
+
+/* =========================================================
+   SECTION: ROUTER
+========================================================= */
+function currentRouteId(){
+  const h = location.hash.replace(/^#\/?/, '');
+  return h || null;
+}
+let suppressHashChange = false;
+let navStack = [];      // ids of pages visited, so back goes where the user actually came from
+let navigatingBack = false;
+window.addEventListener('hashchange', ()=>{
+  if(suppressHashChange){ suppressHashChange = false; return; }
+  const target = currentRouteId();
+  if(App.dirty && App.currentId){
+    App.pendingNav = target;
+    suppressHashChange = true;
+    location.hash = App.currentId; // revert visually; the resulting hashchange is suppressed above
+    openConfirm();
+    return;
+  }
+  if(!navigatingBack && App.currentId!==undefined && App.currentId!==target){ navStack.push(App.currentId); }
+  navigatingBack = false;
+  navigateTo(target);
+});
+document.getElementById('back-btn').addEventListener('click', ()=>{
+  navigatingBack = true;
+  const prev = navStack.pop();
+  location.hash = (prev !== undefined && prev !== null) ? prev : '';
+});
+function navigateTo(id){
+  App.currentId = id;
+  App.dirty = false;
+  const backBtn = document.getElementById('back-btn');
+  const main = document.getElementById('app-main');
+  if(!id){
+    backBtn.classList.add('hidden-btn');
+    renderTitle();
+    renderIndex(main);
+  } else {
+    backBtn.classList.remove('hidden-btn');
+    const meta = CALCULATORS.find(c=>c.id===id);
+    renderTitle();
+    const module = CalculatorModules[id];
+    if(module){ module.render(main); }
+    else { main.innerHTML = '<div class="placeholder">This calculator isn\'t built yet. Check back soon.</div>'; }
+  }
+}
+
+/* =========================================================
+   SECTION: CONFIRM DIALOG (save / discard / cancel on exit)
+========================================================= */
+const overlay = document.getElementById('confirm-overlay');
+function openConfirm(){ overlay.classList.remove('hidden'); }
+function closeConfirm(){ overlay.classList.add('hidden'); }
+document.getElementById('confirm-save').addEventListener('click', ()=>{
+  const module = CalculatorModules[App.currentId];
+  if(module && module.save) module.save();
+  App.dirty = false;
+  closeConfirm();
+  const target = App.pendingNav; App.pendingNav=null;
+  location.hash = target || '';
+});
+document.getElementById('confirm-discard').addEventListener('click', ()=>{
+  App.dirty = false;
+  closeConfirm();
+  const target = App.pendingNav; App.pendingNav=null;
+  location.hash = target || '';
+});
+document.getElementById('confirm-cancel').addEventListener('click', ()=>{
+  App.pendingNav = null;
+  closeConfirm();
+});
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){
+    e.preventDefault();
+    const module = CalculatorModules[App.currentId];
+    if(module && module.save){
+      module.save();
+      App.markDirty(false);
+    }
+  }
+});
+
+/* =========================================================
+   SECTION: INDEX PAGE
+========================================================= */
+function renderIndex(main){
+  const GROUPS = [{id:'quick', title:'Quick Math'}, {id:'toolbox', title:'Toolbox'}];
+  const card = c => `<div class="hex ${c.ready?'':'disabled'}" data-id="${c.id}">${c.icon}<div class="hex-title">${c.title}</div></div>`;
+  let html = '<div class="hive-wrap">';
+  for(const g of GROUPS){
+    const items = CALCULATORS.filter(c => (c.group || 'quick') === g.id);
+    html += `<div class="group-title">${g.title}</div><div class="hive">${items.map(card).join('')}</div>`;
+  }
+  html += '</div>';
+  main.innerHTML = html;
+  main.querySelectorAll('.hex').forEach(card=>{
+    card.addEventListener('click', ()=>{ location.hash = card.dataset.id; });
+  });
+}
+
+/* =========================================================
+   SECTION: REUSABLE UI BUILDERS
+========================================================= */
+// Simple fixed-field calculator (e.g. I = V/R style forms)
+function buildSimpleCalc(root, cfg){
+  // cfg: {storageId, fields:[{key,label,cat,unit} | {key,label,type:'select',options:[{value,label}]}], outputs:[...], compute(vals)->{key:value}, formulaHTML, notesHTML}
+  const saved = Store.load(cfg.storageId) || {};
+  const state = {};
+  cfg.fields.forEach(f=>{
+    const def = f.type==='select' ? f.options[0].value : (f.default ?? 0);
+    state[f.key] = { value: saved[f.key]?.value ?? def, unit: saved[f.key]?.unit ?? f.unit };
+  });
+  cfg.outputs.forEach(o=>{ state[o.key] = { value:0, unit: o.unit }; });
+
+  let left = '<div class="panel"><h3>'+cfg.title+'</h3>';
+  cfg.fields.forEach(f=>{
+    left += fieldRowHTML(f, state[f.key], false);
+  });
+  left += '<hr class="sep">';
+  cfg.outputs.forEach(o=>{
+    left += `<div class="output-block">${fieldRowHTML(o, state[o.key], !o.editable)}</div>`;
+  });
+  left += '</div>';
+
+  const right = `<div class="panel side-panel">${cfg.formulaHTML}${cfg.notesHTML||''}</div>`;
+  root.innerHTML = `<div class="calc-columns">${left}${right}</div>`;
+
+  function currentBase(){
+    const baseVals = {};
+    cfg.fields.forEach(f=>{
+      baseVals[f.key] = f.type==='select' ? state[f.key].value : toBase(parseFloat(state[f.key].value)||0, state[f.key].unit, f.cat);
+    });
+    return baseVals;
+  }
+  function recompute(skipKey){
+    const results = cfg.compute(currentBase());
+    cfg.outputs.forEach(o=>{
+      if(o.key===skipKey) return;
+      const baseVal = results[o.key];
+      state[o.key].value = fromBase(baseVal, state[o.key].unit, o.cat);
+      const input = root.querySelector('[data-field="'+o.key+'"]');
+      if(input){ input.value = fmt(state[o.key].value); flashEl(input); }
+    });
+  }
+  cfg.fields.forEach(f=>{
+    const input = root.querySelector('[data-field="'+f.key+'"]');
+    if(f.type==='select'){
+      input.addEventListener('change', ()=>{ state[f.key].value = input.value; App.markDirty(true); recompute(); });
+      return;
+    }
+    const unitSel = root.querySelector('[data-unit="'+f.key+'"]');
+    input.addEventListener('input', ()=>{
+      state[f.key].value = parseFloat(input.value)||0;
+      App.markDirty(true);
+      recompute();
+    });
+    if(unitSel){
+      unitSel.addEventListener('change', ()=>{
+        const oldUnit = state[f.key].unit;
+        const newUnit = unitSel.value;
+        const baseVal = toBase(parseFloat(input.value)||0, oldUnit, f.cat);
+        state[f.key].value = fromBase(baseVal, newUnit, f.cat);
+        state[f.key].unit = newUnit;
+        input.value = fmt(state[f.key].value);
+        flashEl(input);
+        App.markDirty(true);
+        recompute();
+      });
+    }
+  });
+  cfg.outputs.forEach(o=>{
+    const unitSel = root.querySelector('[data-unit="'+o.key+'"]');
+    if(unitSel){
+      unitSel.addEventListener('change', ()=>{ state[o.key].unit = unitSel.value; recompute(); });
+    }
+    // Bidirectional: editing this output back-solves the inputs via cfg.inverse[key](baseVals, outputBaseValue)
+    const oin = root.querySelector('[data-field="'+o.key+'"]');
+    if(o.editable && oin && cfg.inverse && cfg.inverse[o.key]){
+      oin.addEventListener('input', ()=>{
+        const val = parseFloat(oin.value)||0;
+        state[o.key].value = val;
+        const upd = cfg.inverse[o.key](currentBase(), toBase(val, state[o.key].unit, o.cat));
+        cfg.fields.forEach(f=>{
+          if(upd[f.key]===undefined) return;
+          let nv = fromBase(upd[f.key], state[f.key].unit, f.cat);
+          if(f.round && f.round[state[f.key].unit]!==undefined){
+            const d = f.round[state[f.key].unit], p = Math.pow(10,d);
+            nv = Math.round(nv*p)/p;
+          }
+          state[f.key].value = nv;
+          const fin = root.querySelector('[data-field="'+f.key+'"]');
+          fin.value = fmt(state[f.key].value);
+          flashEl(fin);
+        });
+        App.markDirty(true);
+        recompute(o.key);
+      });
+    }
+  });
+  wireScrubs(root);
+  recompute();
+  return {
+    save(){ const out={}; cfg.fields.forEach(f=>{ out[f.key]={value:state[f.key].value, unit:state[f.key].unit}; }); Store.save(cfg.storageId, out); }
+  };
+}
+function fieldRowHTML(f, s, readonly){
+  if(f.type==='select'){
+    const opts = f.options.map(o=>`<option value="${o.value}" ${o.value===s.value?'selected':''}>${o.label}</option>`).join('');
+    return `<div class="field-row">
+      <div class="field-label">${f.label}</div>
+      <select class="field-input" data-field="${f.key}">${opts}</select>
+    </div>`;
+  }
+  const unitOpts = UNIT_DEFS[f.cat] ? Object.keys(UNIT_DEFS[f.cat].units).map(u=>`<option value="${u}" ${u===s.unit?'selected':''}>${u}</option>`).join('') : '';
+  return `<div class="field-row">
+    <div class="field-label">${f.label}</div>
+    <input class="field-input" data-field="${f.key}" type="${readonly?'text':'number'}" step="any" value="${readonly?fmt(s.value):s.value}" ${readonly?'readonly':''}>
+    ${readonly?'':'<div class="scrub"></div>'}
+    ${UNIT_DEFS[f.cat]?`<select class="field-unit" data-unit="${f.key}">${unitOpts}</select>`:''}
+  </div>`;
+}
+
+// Drag horizontally on a .scrub handle to change the number input right before it.
+function wireScrubs(root){
+  root.querySelectorAll('.scrub').forEach(h=>{
+    const inp = h.previousElementSibling;
+    if(!inp) return;
+    let drag = null;
+    h.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      h.setPointerCapture(e.pointerId);
+      const v0 = parseFloat(inp.value)||0;
+      const unit = h.nextElementSibling && h.nextElementSibling.value;
+      drag = { x0:e.clientX, v0, step:Math.pow(10, Math.floor(Math.log10(Math.abs(v0)||1)) - 2), neg: v0<0 || unit==='°C' || unit==='°F' };
+      h.classList.add('active');
+    });
+    h.addEventListener('pointermove', e=>{
+      if(!drag) return;
+      let v = drag.v0 + (e.clientX - drag.x0) * drag.step * (e.shiftKey ? 0.1 : 1);
+      if(v<0 && !drag.neg) v = 0;
+      inp.value = String(parseFloat(v.toPrecision(6)));
+      inp.dispatchEvent(new Event('input'));
+    });
+    const end = ()=>{ drag = null; h.classList.remove('active'); };
+    h.addEventListener('pointerup', end);
+    h.addEventListener('pointercancel', end);
+  });
+}
+
+// Generic tabbed calculator shell (tabs row + swappable body), reused by any multi-subsection calculator.
+// opts: {sub: boolean styling flag, persistKey: string} — persistKey, if given, remembers the last
+// active tab across visits (via TabMemory, not Store/dirty) so it isn't a "save" and never prompts.
+const TabMemory = {
+  load(key){ try{ return localStorage.getItem('pcbcalc:tabmem:'+key) || null; }catch(e){ return null; } },
+  save(key, id){ try{ localStorage.setItem('pcbcalc:tabmem:'+key, id); }catch(e){} }
+};
+function buildTabbedCalculator(main, tabs, renderFn, opts){
+  opts = (opts===true) ? {sub:true} : (opts || {});
+  const rowCls = opts.sub ? 'subtabs' : 'tabs', btnCls = opts.sub ? 'subtab-btn' : 'tab-btn';
+  const remembered = opts.persistKey ? TabMemory.load(opts.persistKey) : null;
+  const startId = (remembered && tabs.some(t=>t.id===remembered)) ? remembered : tabs[0].id;
+  main.innerHTML = `<div class="calc-page">
+    <div class="${rowCls}">${tabs.map(t=>`<button class="${btnCls}" data-tab="${t.id}">${t.label}</button>`).join('')}</div>
+    <div class="tab-body"></div>
+  </div>`;
+  const body = main.querySelector('.tab-body');
+  let active = null;
+  function setActive(id){
+    main.querySelectorAll('.'+btnCls).forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+    active = renderFn(id, body);
+    if(opts.persistKey) TabMemory.save(opts.persistKey, id);
+  }
+  main.querySelectorAll('.'+btnCls).forEach(b=>b.addEventListener('click', ()=>setActive(b.dataset.tab)));
+  setActive(startId);
+  return { save(){ if(active && active.save) active.save(); } };
+}
+
+// Multi-component series/parallel calculator (R, C, L)
+function buildMultiCompCalc(root, cfg){
+  // cfg: {storageId, title, cat, mode:'series'|'parallel', combine(baseValsArray)->baseTotal, formulaHTML, notesHTML, defaultUnit}
+  const saved = Store.load(cfg.storageId);
+  let rows = saved && saved.rows ? saved.rows : [ {value:100, unit:cfg.defaultUnit}, {value:100, unit:cfg.defaultUnit} ];
+  let totalUnit = saved && saved.totalUnit ? saved.totalUnit : cfg.defaultUnit;
+
+  function render(){
+    let rowsHTML = rows.map((r,i)=>{
+      const unitOpts = Object.keys(UNIT_DEFS[cfg.cat].units).map(u=>`<option value="${u}" ${u===r.unit?'selected':''}>${u}</option>`).join('');
+      return `<div class="field-row" data-row="${i}">
+        <div class="field-label">Component ${i+1}</div>
+        <input class="field-input" type="number" step="any" value="${r.value}" data-row-input="${i}">
+        <div class="scrub"></div>
+        <select class="field-unit" data-row-unit="${i}">${unitOpts}</select>
+        <button class="field-remove" data-row-remove="${i}" title="Remove">&times;</button>
+      </div>`;
+    }).join('');
+    const totalUnitOpts = Object.keys(UNIT_DEFS[cfg.cat].units).map(u=>`<option value="${u}" ${u===totalUnit?'selected':''}>${u}</option>`).join('');
+    const left = `<div class="panel"><h3>${cfg.title}</h3>
+      ${rowsHTML}
+      <button class="add-row-btn" id="add-row">+ Add component</button>
+      <hr class="sep">
+      <div class="output-block field-row">
+        <div class="field-label">Total</div>
+        <input class="field-input" id="total-out" type="text" readonly value="">
+        <select class="field-unit" id="total-unit">${totalUnitOpts}</select>
+      </div>
+    </div>`;
+    const right = `<div class="panel side-panel">${cfg.formulaHTML}${cfg.notesHTML||''}</div>`;
+    root.innerHTML = `<div class="calc-columns">${left}${right}</div>`;
+    wire();
+    compute();
+  }
+  function wire(){
+    wireScrubs(root);
+    root.querySelectorAll('[data-row-input]').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const i = +inp.dataset.rowInput;
+        rows[i].value = parseFloat(inp.value)||0;
+        App.markDirty(true);
+        compute();
+      });
+    });
+    root.querySelectorAll('[data-row-unit]').forEach(sel=>{
+      sel.addEventListener('change', ()=>{
+        const i = +sel.dataset.rowUnit;
+        const oldUnit = rows[i].unit;
+        const newUnit = sel.value;
+        const baseVal = toBase(rows[i].value, oldUnit, cfg.cat);
+        rows[i].value = parseFloat(fmt(fromBase(baseVal, newUnit, cfg.cat)));
+        rows[i].unit = newUnit;
+        App.markDirty(true);
+        render();
+      });
+    });
+    root.querySelectorAll('[data-row-remove]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = +btn.dataset.rowRemove;
+        if(rows.length>1){ rows.splice(i,1); App.markDirty(true); render(); }
+      });
+    });
+    root.querySelector('#add-row').addEventListener('click', ()=>{
+      rows.push({value:100, unit:cfg.defaultUnit});
+      App.markDirty(true);
+      render();
+    });
+    root.querySelector('#total-unit').addEventListener('change', (e)=>{
+      totalUnit = e.target.value;
+      compute();
+    });
+  }
+  function compute(){
+    const baseVals = rows.map(r=> toBase(r.value, r.unit, cfg.cat));
+    const totalBase = cfg.combine(baseVals);
+    const out = root.querySelector('#total-out');
+    if(out){ out.value = fmt(fromBase(totalBase, totalUnit, cfg.cat)); flashEl(out); }
+  }
+  render();
+  return { save(){ Store.save(cfg.storageId, {rows, totalUnit}); } };
+}
+
+/* =========================================================
+   SECTION: CALCULATOR MODULES
+========================================================= */
+const CalculatorModules = {};
+
+CalculatorModules['ohms-law'] = {
+  render(main){
+    const tabs = [
+      {id:'current', label:'Current'},
+      {id:'vdrop', label:'Voltage Drop'},
+      {id:'diode', label:'LED / Diode Bias'},
+      {id:'seriesR', label:'Series R'},
+      {id:'parallelR', label:'Parallel R'},
+      {id:'seriesC', label:'Series C'},
+      {id:'parallelC', label:'Parallel C'},
+      {id:'seriesL', label:'Series L'},
+      {id:'parallelL', label:'Parallel L'},
+    ];
+    main.innerHTML = `<div class="calc-page">
+      <div class="tabs" id="ohm-tabs">${tabs.map(t=>`<button class="tab-btn" data-tab="${t.id}">${t.label}</button>`).join('')}</div>
+      <div id="ohm-body"></div>
+    </div>`;
+    let activeSave = null;
+    const body = main.querySelector('#ohm-body');
+    function setActive(tabId){
+      main.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabId));
+      activeSave = renderSub(tabId, body);
+      TabMemory.save('ohms-law', tabId);
+    }
+    main.querySelectorAll('.tab-btn').forEach(b=> b.addEventListener('click', ()=>setActive(b.dataset.tab)));
+    const remembered = TabMemory.load('ohms-law');
+    setActive(tabs.some(t=>t.id===remembered) ? remembered : 'current');
+    this._getSave = ()=>activeSave;
+  },
+  save(){ if(this._getSave && this._getSave()) this._getSave().save(); }
+};
+
+function renderSub(tabId, body){
+  switch(tabId){
+    case 'current':
+      return buildSimpleCalc(body, {
+        storageId:'ohms-current', title:'Current (I = V / R)',
+        fields:[
+          {key:'v', label:'Voltage', cat:'voltage', unit:'V', default:5},
+          {key:'r', label:'Resistance', cat:'resistance', unit:'Ω', default:1000},
+        ],
+        outputs:[ {key:'i', label:'Current', cat:'current', unit:'mA', editable:true} ],
+        compute:(v)=>({ i: v.r!==0 ? v.v/v.r : 0 }),
+        inverse:{ i:(b,i)=>({ v: i*b.r }) }, // R held constant
+        formulaHTML:`<h4>Formula</h4><div class="formula">I = <span class="frac"><span class="num">V</span><span class="den">R</span></span></div>`,
+        notesHTML:`<h4>Notes</h4><p>Basic Ohm's Law. Converts all inputs to volts and ohms internally, so any unit combination works.</p>`
+      });
+    case 'vdrop':
+      return buildSimpleCalc(body, {
+        storageId:'ohms-vdrop', title:'Voltage Drop (V = I × R)',
+        fields:[
+          {key:'i', label:'Current', cat:'current', unit:'mA', default:20},
+          {key:'r', label:'Resistance', cat:'resistance', unit:'Ω', default:220},
+        ],
+        outputs:[ {key:'v', label:'Voltage Drop', cat:'voltage', unit:'V', editable:true} ],
+        compute:(v)=>({ v: v.i*v.r }),
+        inverse:{ v:(b,vd)=>({ i: b.r!==0 ? vd/b.r : 0 }) }, // R held constant
+        formulaHTML:`<h4>Formula</h4><div class="formula">V = I &middot; R</div>`,
+        notesHTML:`<h4>Notes</h4><p>Voltage dropped across a resistive element carrying current I.</p>`
+      });
+    case 'diode':
+      return buildSimpleCalc(body, {
+        storageId:'ohms-diode', title:'LED / Diode Series Resistor',
+        fields:[
+          {key:'vs', label:'Supply Voltage', cat:'voltage', unit:'V', default:5},
+          {key:'vf', label:'Diode Fwd. Voltage', cat:'voltage', unit:'V', default:2},
+          {key:'if_', label:'Forward Current', cat:'current', unit:'mA', default:20},
+        ],
+        outputs:[
+          {key:'r', label:'Series Resistor', cat:'resistance', unit:'Ω', editable:true},
+          {key:'p', label:'Resistor Power', cat:'power', unit:'mW'},
+        ],
+        compute:(v)=>{ const r = v.if_>0 ? (v.vs-v.vf)/v.if_ : 0; return { r: Math.max(r,0), p: v.if_*v.if_*Math.max(r,0) }; },
+        inverse:{ r:(b,r)=>({ if_: r>0 ? Math.max(b.vs-b.vf,0)/r : 0 }) }, // Vs, Vf held constant
+        formulaHTML:`<h4>Formula</h4>
+          <div class="formula">R = <span class="frac"><span class="num">V<sub>S</sub> − V<sub>F</sub></span><span class="den">I<sub>F</sub></span></span></div>
+          <div class="formula">P = I<sub>F</sub><sup>2</sup> &middot; R</div>`,
+        notesHTML:`<h4>Notes</h4><p>Series resistor needed to bias an LED or diode at a target forward current. Check the diode's actual V<sub>F</sub> at your target current from its datasheet.</p>`
+      });
+    case 'seriesR':
+      return buildMultiCompCalc(body, {
+        storageId:'ohms-seriesR', title:'Series Resistance', cat:'resistance', defaultUnit:'Ω',
+        combine:(vals)=> vals.reduce((a,b)=>a+b,0),
+        formulaHTML:`<h4>Formula</h4><div class="formula">R<sub>T</sub> = R<sub>1</sub> + R<sub>2</sub> + … + R<sub>n</sub></div>`,
+        notesHTML:`<h4>Notes</h4><p>Total resistance of resistors in series is the sum of each value.</p>`
+      });
+    case 'parallelR':
+      return buildMultiCompCalc(body, {
+        storageId:'ohms-parallelR', title:'Parallel Resistance', cat:'resistance', defaultUnit:'Ω',
+        combine:(vals)=>{ const s = vals.reduce((a,b)=> b!==0? a+1/b:a, 0); return s!==0?1/s:0; },
+        formulaHTML:`<h4>Formula</h4><div class="formula"><span class="frac"><span class="num">1</span><span class="den">R<sub>T</sub></span></span> = <span class="frac"><span class="num">1</span><span class="den">R<sub>1</sub></span></span> + … + <span class="frac"><span class="num">1</span><span class="den">R<sub>n</sub></span></span></div>`,
+        notesHTML:`<h4>Notes</h4><p>Total resistance of resistors in parallel is the reciprocal sum.</p>`
+      });
+    case 'seriesC':
+      return buildMultiCompCalc(body, {
+        storageId:'ohms-seriesC', title:'Series Capacitance', cat:'capacitance', defaultUnit:'µF',
+        combine:(vals)=>{ const s = vals.reduce((a,b)=> b!==0? a+1/b:a, 0); return s!==0?1/s:0; },
+        formulaHTML:`<h4>Formula</h4><div class="formula"><span class="frac"><span class="num">1</span><span class="den">C<sub>T</sub></span></span> = <span class="frac"><span class="num">1</span><span class="den">C<sub>1</sub></span></span> + … + <span class="frac"><span class="num">1</span><span class="den">C<sub>n</sub></span></span></div>`,
+        notesHTML:`<h4>Notes</h4><p>Capacitors in series behave like resistors in parallel.</p>`
+      });
+    case 'parallelC':
+      return buildMultiCompCalc(body, {
+        storageId:'ohms-parallelC', title:'Parallel Capacitance', cat:'capacitance', defaultUnit:'µF',
+        combine:(vals)=> vals.reduce((a,b)=>a+b,0),
+        formulaHTML:`<h4>Formula</h4><div class="formula">C<sub>T</sub> = C<sub>1</sub> + … + C<sub>n</sub></div>`,
+        notesHTML:`<h4>Notes</h4><p>Capacitors in parallel add directly, like resistors in series.</p>`
+      });
+    case 'seriesL':
+      return buildMultiCompCalc(body, {
+        storageId:'ohms-seriesL', title:'Series Inductance', cat:'inductance', defaultUnit:'µH',
+        combine:(vals)=> vals.reduce((a,b)=>a+b,0),
+        formulaHTML:`<h4>Formula</h4><div class="formula">L<sub>T</sub> = L<sub>1</sub> + … + L<sub>n</sub></div>`,
+        notesHTML:`<h4>Notes</h4><p>Assumes no mutual coupling between inductors.</p>`
+      });
+    case 'parallelL':
+      return buildMultiCompCalc(body, {
+        storageId:'ohms-parallelL', title:'Parallel Inductance', cat:'inductance', defaultUnit:'µH',
+        combine:(vals)=>{ const s = vals.reduce((a,b)=> b!==0? a+1/b:a, 0); return s!==0?1/s:0; },
+        formulaHTML:`<h4>Formula</h4><div class="formula"><span class="frac"><span class="num">1</span><span class="den">L<sub>T</sub></span></span> = <span class="frac"><span class="num">1</span><span class="den">L<sub>1</sub></span></span> + … + <span class="frac"><span class="num">1</span><span class="den">L<sub>n</sub></span></span></div>`,
+        notesHTML:`<h4>Notes</h4><p>Assumes no mutual coupling between inductors.</p>`
+      });
+  }
+}
+
+CalculatorModules['epsilon-r'] = {
+  render(main){
+    main.innerHTML = '<div class="calc-page" id="er-body"></div>';
+    this._calc = buildSimpleCalc(main.querySelector('#er-body'), {
+      storageId:'epsilon-r', title:'Microstrip Effective Dielectric Constant',
+      fields:[
+        {key:'er', label:'Substrate εr', default:4.4},
+        {key:'w', label:'Trace Width (W)', cat:'length', unit:'mm', default:0.3},
+        {key:'h', label:'Dielectric Height (H)', cat:'length', unit:'mm', default:0.2},
+        {key:'f', label:'Frequency (optional)', cat:'frequency', unit:'GHz', default:0},
+      ],
+      outputs:[
+        {key:'eeff0', label:'Static εeff'},
+        {key:'eefff', label:'εeff at Frequency'},
+      ],
+      compute:(v)=>{
+        if(v.w<=0 || v.h<=0) return { eeff0:0, eefff:0 };
+        const er = v.er, u = v.w/v.h;
+        const eeff0 = (er+1)/2 + (er-1)/2 / Math.sqrt(1+12/u);
+        const fGHz = v.f/1e9; // v.f is in Hz (base unit)
+        const fn = fGHz * v.h; // GHz·mm, per Kirschning-Jansen normalisation
+        if(fn<=0) return { eeff0, eefff: eeff0 };
+        const P1 = 0.27488 + (0.6315 + 0.525/Math.pow(1+0.0157*fn,20))*u - 0.065683*Math.exp(-8.7513*u);
+        const P2 = 0.33622*(1-Math.exp(-0.03442*er));
+        const P3 = 0.0363*Math.exp(-4.6*u)*(1-Math.exp(-Math.pow(fn/38.7,4.97)));
+        const P4 = 1 + 2.751*(1-Math.exp(-Math.pow(er/15.916,8)));
+        const Pf = P1*P2*Math.pow((0.1844+P3*P4)*fn, 1.5763);
+        const eefff = er - (er-eeff0)/(1+Pf);
+        return { eeff0, eefff };
+      },
+      formulaHTML:`<h4>Static Formula (Hammerstad)</h4>
+        <div class="formula">&epsilon;<sub>eff</sub>(0) = <span class="frac"><span class="num">&epsilon;<sub>r</sub>+1</span><span class="den">2</span></span> + <span class="frac"><span class="num">&epsilon;<sub>r</sub>&minus;1</span><span class="den">2</span></span> &middot; (1 + 12H/W)<sup>&minus;0.5</sup></div>
+        <h4>Dispersion (Kirschning &amp; Jansen)</h4>
+        <div class="formula">&epsilon;<sub>eff</sub>(f) = &epsilon;<sub>r</sub> &minus; <span class="frac"><span class="num">&epsilon;<sub>r</sub> &minus; &epsilon;<sub>eff</sub>(0)</span><span class="den">1 + P(f)</span></span></div>
+        <p style="font-size:12px">P(f) is a 4-term empirical fit (P1..P4) in u=W/H and normalised frequency f<sub>n</sub>=f[GHz]&middot;H[mm]. Set frequency to 0 to see only the static value.</p>`,
+      notesHTML:`<h4>Notes</h4><p>Static formula: most accurate for W/H &ge; 1. Dispersion model valid for 0.1&le;W/H&le;100, 1&le;&epsilon;<sub>r</sub>&le;20, accurate to about &plusmn;0.6% up to roughly 60 GHz on typical substrates. &epsilon;<sub>eff</sub> rises toward the bulk &epsilon;<sub>r</sub> as frequency increases.</p>`
+    });
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+
+CalculatorModules['fusing-current'] = {
+  render(main){
+    main.innerHTML = '<div class="calc-page" id="fc-body"></div>';
+    this._calc = buildSimpleCalc(main.querySelector('#fc-body'), {
+      storageId:'fusing-current', title:'Fusing Current (Onderdonk\'s Equation)',
+      fields:[
+        {key:'w', label:'Trace Width', cat:'length', unit:'mm', default:0.5},
+        {key:'th', label:'Copper Thickness', cat:'length', unit:'µm', default:35},
+        {key:'ta', label:'Ambient Temp', cat:'temperature', unit:'°C', default:25},
+        {key:'tm', label:'Melting Temp', cat:'temperature', unit:'°C', default:1083},
+        {key:'s', label:'Time', cat:'time', unit:'s', default:1},
+      ],
+      outputs:[
+        {key:'area', label:'Cross-Section Area (c.mil)'},
+        {key:'i', label:'Fusing Current', cat:'current', unit:'A'},
+      ],
+      compute:(v)=>{
+        const wMil = v.w/0.0254, thMil = v.th/0.0254;
+        const areaCMil = wMil*thMil*1.2732; // 1 sq.mil = 1.2732 circular mils
+        const s = v.s>0 ? v.s : 1e-9;
+        const logTerm = 1 + (v.tm - v.ta)/(234 + v.ta);
+        const i = logTerm>0 ? areaCMil*Math.sqrt(Math.log10(logTerm)/(33*s)) : 0;
+        return { area: areaCMil, i: isFinite(i)?i:0 };
+      },
+      formulaHTML:`<h4>Formula (Onderdonk)</h4>
+        <div class="formula">I = A &middot; &radic;( log<sub>10</sub>(1 + <span class="frac"><span class="num">T<sub>m</sub> &minus; T<sub>a</sub></span><span class="den">234 + T<sub>a</sub></span></span>) &divide; 33s )</div>
+        <p style="font-size:12px">A = area in circular mils, s = time in seconds, T in &deg;C.</p>`,
+      notesHTML:`<h4>Notes</h4><p>Estimates the current that raises a copper trace to its melting point (1083&deg;C for copper) within time <em>s</em>, assuming zero heat loss to conduction, convection, or radiation. Valid for short durations, generally under ~10 seconds — derate for real-world cooling and continuous operation.</p>`
+    });
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+
+CalculatorModules['wavelength'] = {
+  render(main){
+    main.innerHTML = '<div class="calc-page" id="wl-body"></div>';
+    this._calc = buildSimpleCalc(main.querySelector('#wl-body'), {
+      storageId:'wavelength', title:'Wavelength Calculator',
+      fields:[
+        {key:'f', label:'Frequency', cat:'frequency', unit:'MHz', default:100},
+        {key:'ereff', label:'Effective εr (εreff)', default:1},
+      ],
+      outputs:[ {key:'lambda', label:'Wavelength', cat:'length', unit:'mm', editable:true} ],
+      inverse:{ lambda:(v,mm)=>({ f: (mm>0 && v.ereff>0) ? 299792458/((mm/1000)*Math.sqrt(v.ereff)) : 0 }) }, // εreff held constant
+      compute:(v)=>{
+        const c = 299792458; // m/s, speed of light in vacuum
+        const lambdaM = (v.f>0 && v.ereff>0) ? c/(v.f*Math.sqrt(v.ereff)) : 0;
+        return { lambda: lambdaM*1000 }; // m -> mm (base length unit)
+      },
+      formulaHTML:`<h4>Formula</h4><div class="formula">&lambda; = <span class="frac"><span class="num">c</span><span class="den">f &middot; &radic;&epsilon;<sub>r eff</sub></span></span></div>`,
+      notesHTML:`<h4>Notes</h4><p>c = 299,792,458 m/s. &epsilon;<sub>r eff</sub> = 1 for free space / air. For a PCB trace, use the effective &epsilon;<sub>r</sub> from the Epsilon r calculator (its static or frequency-dependent value) to get the in-trace wavelength.</p>`
+    });
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+
+const CLEARANCE_TABLE = [
+  {max:15,  vals:[0.05, 0.1,  0.1,  0.05]},
+  {max:30,  vals:[0.05, 0.1,  0.1,  0.05]},
+  {max:50,  vals:[0.1,  0.6,  0.6,  0.13]},
+  {max:100, vals:[0.1,  0.6,  1.5,  0.13]},
+  {max:150, vals:[0.2,  0.6,  3.2,  0.4]},
+  {max:170, vals:[0.2,  1.25, 3.2,  0.4]},
+  {max:250, vals:[0.2,  1.25, 6.4,  0.4]},
+  {max:300, vals:[0.2,  1.25, 12.5, 0.4]},
+  {max:500, vals:[0.25, 2.5,  12.5, 0.8]},
+];
+const CLEARANCE_RATES = [0.0025, 0.005, 0.025, 0.00305]; // mm per volt, above 500V
+const CLEARANCE_CATS = [
+  {label:'B1 — Internal conductors'},
+  {label:'B2 — External, uncoated, ≤3050 m altitude'},
+  {label:'B3 — External, uncoated, >3050 m altitude'},
+  {label:'B4 — External, permanent polymer coating'},
+];
+function getClearanceMM(voltage, catIdx){
+  voltage = Math.abs(voltage);
+  if(voltage>500) return voltage*CLEARANCE_RATES[catIdx];
+  for(const row of CLEARANCE_TABLE){ if(voltage<=row.max) return row.vals[catIdx]; }
+  return CLEARANCE_TABLE[CLEARANCE_TABLE.length-1].vals[catIdx];
+}
+CalculatorModules['creepage'] = {
+  render(main){
+    const saved = Store.load('creepage') || {};
+    const voltage = saved.voltage ?? 120, vUnit = saved.vUnit ?? 'V';
+    const catIdx = saved.catIdx ?? 0, outUnit = saved.outUnit ?? 'mm';
+    main.innerHTML = `<div class="calc-page"><div class="calc-columns">
+      <div class="panel"><h3>Clearance Distance (IPC-2221B)</h3>
+        <div class="field-row">
+          <div class="field-label">Voltage</div>
+          <input class="field-input" id="cr-v" type="number" step="any" value="${voltage}">
+          <div class="scrub"></div>
+          <select class="field-unit" id="cr-vunit">${Object.keys(UNIT_DEFS.voltage.units).map(u=>`<option value="${u}" ${u===vUnit?'selected':''}>${u}</option>`).join('')}</select>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Conductor Category</div>
+          <select class="field-input" id="cr-cat">${CLEARANCE_CATS.map((c,i)=>`<option value="${i}" ${i===catIdx?'selected':''}>${c.label}</option>`).join('')}</select>
+        </div>
+        <hr class="sep">
+        <div class="output-block field-row">
+          <div class="field-label">Min. Clearance</div>
+          <input class="field-input" id="cr-out" type="text" readonly>
+          <select class="field-unit" id="cr-outunit">${Object.keys(UNIT_DEFS.length.units).map(u=>`<option value="${u}" ${u===outUnit?'selected':''}>${u}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="panel side-panel">
+        <h4>Reference</h4>
+        <p>Based on the IPC-2221B PCB clearance distance table. Above 500&nbsp;V, distance scales linearly at a fixed mm/V rate per category.</p>
+        <h4>Notes</h4>
+        <p>Clearance is the shortest through-air distance between two conductors. Full creepage distance (measured along the surface) additionally depends on pollution degree and the substrate's Comparative Tracking Index (CTI) — consult IPC-2221B directly for certified safety designs.</p>
+      </div>
+    </div></div>`;
+    wireScrubs(main);
+    const vIn = main.querySelector('#cr-v'), vUnitSel = main.querySelector('#cr-vunit');
+    const catSel = main.querySelector('#cr-cat'), outEl = main.querySelector('#cr-out'), outUnitSel = main.querySelector('#cr-outunit');
+    function recompute(){
+      const vBase = toBase(parseFloat(vIn.value)||0, vUnitSel.value, 'voltage');
+      const mm = getClearanceMM(vBase, parseInt(catSel.value));
+      outEl.value = fmt(fromBase(mm, outUnitSel.value, 'length'));
+      flashEl(outEl);
+    }
+    vIn.addEventListener('input', ()=>{ App.markDirty(true); recompute(); });
+    vUnitSel.addEventListener('change', (e)=>{
+      const newUnit = e.target.value;
+      const oldUnit = vUnitSel.dataset.prev || newUnit;
+      const baseVal = toBase(parseFloat(vIn.value)||0, oldUnit, 'voltage');
+      vIn.value = fmt(fromBase(baseVal, newUnit, 'voltage'));
+      vUnitSel.dataset.prev = newUnit;
+      App.markDirty(true);
+      recompute();
+    });
+    vUnitSel.dataset.prev = vUnitSel.value;
+    catSel.addEventListener('change', ()=>{ App.markDirty(true); recompute(); });
+    outUnitSel.addEventListener('change', recompute);
+    recompute();
+    this._save = ()=> Store.save('creepage', { voltage: parseFloat(vIn.value)||0, vUnit: vUnitSel.value, catIdx: parseInt(catSel.value), outUnit: outUnitSel.value });
+  },
+  save(){ if(this._save) this._save(); }
+};
+
+const LAYER_OPTS = [ {value:'ext', label:'External layer'}, {value:'int', label:'Internal layer'} ];
+const CU_RESISTIVITY = 1.68e-8; // Ω·m at 20°C
+
+CalculatorModules['via'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'resistance', label:'Resistance & Power'},
+      {id:'current', label:'Current Capacity'},
+      {id:'inductance', label:'Inductance'},
+      {id:'capacitance', label:'Capacitance'},
+    ], renderViaSub, {persistKey:'via'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderViaSub(tabId, body){
+  switch(tabId){
+    case 'resistance':
+      return buildSimpleCalc(body, {
+        storageId:'via-resistance', title:'Via Barrel Resistance & Power',
+        fields:[
+          {key:'d', label:'Drill Diameter', cat:'length', unit:'mm', default:0.3},
+          {key:'t', label:'Plating Thickness', cat:'length', unit:'µm', default:25},
+          {key:'l', label:'Via Length', cat:'length', unit:'mm', default:1.6},
+          {key:'i', label:'Current', cat:'current', unit:'A', default:1},
+        ],
+        outputs:[
+          {key:'r', label:'Barrel Resistance', cat:'resistance', unit:'mΩ'},
+          {key:'v', label:'Voltage Drop', cat:'voltage', unit:'mV'},
+          {key:'p', label:'Power', cat:'power', unit:'mW'},
+        ],
+        compute:(v)=>{
+          const d=v.d/1000, t=v.t/1000, l=v.l/1000; // mm -> m
+          const area = Math.PI*t*(d-t); // annular barrel cross-section, m²
+          const r = area>0 ? CU_RESISTIVITY*l/area : 0;
+          return { r, v: v.i*r, p: v.i*v.i*r };
+        },
+        formulaHTML:`<h4>Formulas</h4>
+          <div class="formula">A = &pi;&middot;t&middot;(d&minus;t)</div>
+          <div class="formula">R = <span class="frac"><span class="num">&rho;&middot;L</span><span class="den">A</span></span></div>
+          <p style="font-size:12px">d = drill diameter, t = plating thickness, L = via length, &rho; = 1.68&times;10&#8315;&sup8; &Omega;&middot;m (copper).</p>`,
+        notesHTML:`<h4>Notes</h4><p>Treats the plated barrel as an annular (ring-shaped) conductor. Assumes uniform plating thickness around the hole wall.</p>`
+      });
+    case 'current':
+      return buildSimpleCalc(body, {
+        storageId:'via-current', title:'Via Current Capacity (IPC-2221)',
+        fields:[
+          {key:'d', label:'Drill Diameter', cat:'length', unit:'mm', default:0.3},
+          {key:'t', label:'Plating Thickness', cat:'length', unit:'µm', default:25},
+          {key:'dt', label:'Temp Rise (°C)', default:10},
+          {key:'layer', label:'Layer', type:'select', options:LAYER_OPTS},
+        ],
+        outputs:[ {key:'i', label:'Max Current', cat:'current', unit:'A'} ],
+        compute:(v)=>{
+          const d=v.d, t=v.t/1000; // d in mm, t converted mm
+          const areaMm2 = Math.PI*t*(d-t);
+          const areaMil2 = areaMm2*1550.0031;
+          const k = v.layer==='ext' ? 0.048 : 0.024;
+          const i = areaMil2>0 ? k*Math.pow(v.dt,0.44)*Math.pow(areaMil2,0.725) : 0;
+          return { i: isFinite(i)?i:0 };
+        },
+        formulaHTML:`<h4>Formula (IPC-2221)</h4><div class="formula">I = k &middot; &Delta;T<sup>0.44</sup> &middot; A<sup>0.725</sup></div>
+          <p style="font-size:12px">A = via barrel annular area in mil&sup2;. k = 0.048 external, 0.024 internal.</p>`,
+        notesHTML:`<h4>Notes</h4><p>Applies the standard IPC-2221 trace-current curve-fit to the via's barrel cross-section — a common approximation, since IPC-2221 doesn't define a via-specific formula. Treat as a conservative estimate; IPC-2152 or thermal simulation gives more accurate results for critical designs.</p>`
+      });
+    case 'inductance':
+      return buildSimpleCalc(body, {
+        storageId:'via-inductance', title:'Via Inductance',
+        fields:[
+          {key:'h', label:'Via Length', cat:'length', unit:'mm', default:1.6},
+          {key:'d', label:'Via Diameter', cat:'length', unit:'mm', default:0.3},
+        ],
+        outputs:[ {key:'l', label:'Inductance', cat:'inductance', unit:'nH'} ],
+        compute:(v)=>{
+          const hIn=v.h/25.4, dIn=v.d/25.4;
+          const lnH = dIn>0 ? 5.08*hIn*(Math.log(4*hIn/dIn)+1) : 0;
+          return { l: lnH*1e-9 }; // nH -> H (base inductance unit)
+        },
+        formulaHTML:`<h4>Formula (Johnson &amp; Graham)</h4><div class="formula">L = 5.08&middot;h&middot;[ln(4h/d) + 1]&nbsp;nH</div>
+          <p style="font-size:12px">h, d in inches.</p>`,
+        notesHTML:`<h4>Notes</h4><p>From Johnson &amp; Graham, <em>High-Speed Digital Design</em>. Length dominates — diameter sits inside the log term and has a much smaller effect.</p>`
+      });
+    case 'capacitance':
+      return buildSimpleCalc(body, {
+        storageId:'via-capacitance', title:'Via Pad/Antipad Capacitance',
+        fields:[
+          {key:'d1', label:'Pad Diameter (D1)', cat:'length', unit:'mm', default:0.6},
+          {key:'d2', label:'Antipad Diameter (D2)', cat:'length', unit:'mm', default:1.0},
+          {key:'th', label:'Board Thickness (T)', cat:'length', unit:'mm', default:1.6},
+          {key:'er', label:'Substrate εr', default:4.4},
+        ],
+        outputs:[ {key:'c', label:'Capacitance', cat:'capacitance', unit:'pF'} ],
+        compute:(v)=>{
+          const d1=v.d1/25.4, d2=v.d2/25.4, th=v.th/25.4; // mm -> in
+          const cpF = (d2>d1) ? 1.41*v.er*th*d1/(d2-d1) : 0;
+          return { c: cpF*1e-12 }; // pF -> F (base capacitance unit)
+        },
+        formulaHTML:`<h4>Formula (Johnson &amp; Graham)</h4><div class="formula">C(pF) = <span class="frac"><span class="num">1.41&middot;&epsilon;<sub>r</sub>&middot;T&middot;D1</span><span class="den">D2 &minus; D1</span></span></div>
+          <p style="font-size:12px">D1, D2, T in inches.</p>`,
+        notesHTML:`<h4>Notes</h4><p>Parasitic capacitance from the via's pad to the surrounding plane, through the antipad clearance. Larger antipads reduce this capacitance.</p>`
+      });
+  }
+}
+
+CalculatorModules['trace-width'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'current', label:'Current from Width'},
+      {id:'width', label:'Width from Current'},
+      {id:'temprise', label:'Temp Rise'},
+    ], renderTraceSub, {persistKey:'trace-width'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderTraceSub(tabId, body){
+  switch(tabId){
+    case 'current':
+      return buildSimpleCalc(body, {
+        storageId:'trace-current', title:'Max Current from Width',
+        fields:[
+          {key:'w', label:'Trace Width', cat:'length', unit:'mm', default:0.5},
+          {key:'th', label:'Copper Thickness', cat:'length', unit:'µm', default:35},
+          {key:'len', label:'Trace Length', cat:'length', unit:'mm', default:100},
+          {key:'dt', label:'Temp Rise (°C)', default:10},
+          {key:'layer', label:'Layer', type:'select', options:LAYER_OPTS},
+        ],
+        outputs:[
+          {key:'i', label:'Max Current', cat:'current', unit:'A'},
+          {key:'vdrop', label:'Voltage Drop @ Imax', cat:'voltage', unit:'mV'},
+        ],
+        compute:(v)=>{
+          const wMil=v.w/0.0254, thMil=v.th/0.0254;
+          const area = wMil*thMil;
+          const k = v.layer==='ext' ? 0.048 : 0.024;
+          const i = k*Math.pow(v.dt,0.44)*Math.pow(area,0.725);
+          const areaM2 = (v.w/1000)*(v.th/1000); // mm -> m
+          const r = areaM2>0 ? CU_RESISTIVITY*(v.len/1000)/areaM2 : 0;
+          return { i, vdrop: i*r };
+        },
+        formulaHTML:`<h4>Formula (IPC-2221)</h4><div class="formula">I = k &middot; &Delta;T<sup>0.44</sup> &middot; (W&middot;H)<sup>0.725</sup></div>
+          <p style="font-size:12px">W, H in mils. k = 0.048 external, 0.024 internal.</p>
+          <h4>Voltage Drop</h4><div class="formula">V = I<sub>max</sub> &middot; &rho;&middot;L / (W&middot;H)</div>
+          <p style="font-size:12px">&rho; = 1.68&times;10&#8315;&sup8; &Omega;&middot;m (copper). Assumes uniform width/thickness over the full length.</p>`,
+        notesHTML:`<h4>Notes</h4><p>Classic IPC-2221 curve-fit (still air, no adjacent plane heat-sinking). Conservative vs. the newer IPC-2152 model — real boards can often run cooler/narrower.</p>
+          <p>Voltage drop is the drop over the given length carrying the calculated max current — not a temperature-related quantity.</p>`
+      });
+    case 'width':
+      return buildSimpleCalc(body, {
+        storageId:'trace-width-req', title:'Required Width from Current',
+        fields:[
+          {key:'i', label:'Current', cat:'current', unit:'A', default:2},
+          {key:'th', label:'Copper Thickness', cat:'length', unit:'µm', default:35},
+          {key:'len', label:'Trace Length', cat:'length', unit:'mm', default:100},
+          {key:'dt', label:'Temp Rise (°C)', default:10},
+          {key:'layer', label:'Layer', type:'select', options:LAYER_OPTS},
+        ],
+        outputs:[
+          {key:'w', label:'Required Width', cat:'length', unit:'mm'},
+          {key:'vdrop', label:'Voltage Drop @ I', cat:'voltage', unit:'mV'},
+        ],
+        compute:(v)=>{
+          const k = v.layer==='ext' ? 0.048 : 0.024;
+          const areaMil2 = Math.pow(v.i/(k*Math.pow(v.dt,0.44)), 1/0.725);
+          const thMil = v.th/0.0254;
+          const wMil = thMil>0 ? areaMil2/thMil : 0;
+          const wMm = wMil*0.0254;
+          const areaM2 = (wMm/1000)*(v.th/1000);
+          const r = areaM2>0 ? CU_RESISTIVITY*(v.len/1000)/areaM2 : 0;
+          return { w: wMm, vdrop: v.i*r };
+        },
+        formulaHTML:`<h4>Formula (IPC-2221)</h4><div class="formula">A = <span class="frac"><span class="num">I</span><span class="den">k&middot;&Delta;T<sup>0.44</sup></span></span><sup>1/0.725</sup>, &nbsp; W = A / H</div>
+          <h4>Voltage Drop</h4><div class="formula">V = I &middot; &rho;&middot;L / (W&middot;H)</div>
+          <p style="font-size:12px">Uses the solved width above. &rho; = 1.68&times;10&#8315;&sup8; &Omega;&middot;m (copper).</p>`,
+        notesHTML:`<h4>Notes</h4><p>Solves the same IPC-2221 relation for the minimum width that keeps the trace within the target temperature rise at the given current.</p>
+          <p>Voltage drop follows from that width over the given length — check it against your supply's tolerance budget.</p>`
+      });
+    case 'temprise':
+      return buildSimpleCalc(body, {
+        storageId:'trace-temprise', title:'Temperature Rise from Width & Current',
+        fields:[
+          {key:'w', label:'Trace Width', cat:'length', unit:'mm', default:0.5},
+          {key:'th', label:'Copper Thickness', cat:'length', unit:'µm', default:35},
+          {key:'i', label:'Current', cat:'current', unit:'A', default:2},
+          {key:'layer', label:'Layer', type:'select', options:LAYER_OPTS},
+        ],
+        outputs:[ {key:'dt', label:'Temp Rise (°C)'} ],
+        compute:(v)=>{
+          const wMil=v.w/0.0254, thMil=v.th/0.0254;
+          const area = wMil*thMil;
+          const k = v.layer==='ext' ? 0.048 : 0.024;
+          const dt = area>0 ? Math.pow(v.i/(k*Math.pow(area,0.725)), 1/0.44) : 0;
+          return { dt: isFinite(dt)?dt:0 };
+        },
+        formulaHTML:`<h4>Formula (IPC-2221)</h4><div class="formula">&Delta;T = <span class="frac"><span class="num">I</span><span class="den">k&middot;A<sup>0.725</sup></span></span><sup>1/0.44</sup></div>`,
+        notesHTML:`<h4>Notes</h4><p>Estimates steady-state temperature rise above ambient for a trace of this width/thickness carrying this current.</p>`
+      });
+  }
+}
+
+CalculatorModules['crystal'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'loadcap', label:'Load Capacitance'},
+      {id:'ppm', label:'PPM ↔ Frequency'},
+    ], renderCrystalSub, {persistKey:'crystal'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderCrystalSub(tabId, body){
+  switch(tabId){
+    case 'loadcap':
+      return buildSimpleCalc(body, {
+        storageId:'crystal-loadcap', title:'Crystal Load Capacitance',
+        fields:[
+          {key:'c1', label:'External Cap C1', cat:'capacitance', unit:'pF', default:18},
+          {key:'c2', label:'External Cap C2', cat:'capacitance', unit:'pF', default:18},
+          {key:'cs', label:'Stray Capacitance', cat:'capacitance', unit:'pF', default:3},
+        ],
+        outputs:[ {key:'cl', label:'Load Capacitance (CL)', cat:'capacitance', unit:'pF'} ],
+        compute:(v)=>{
+          const cl = (v.c1*v.c2!==0) ? (v.c1*v.c2)/(v.c1+v.c2) + v.cs : v.cs;
+          return { cl };
+        },
+        formulaHTML:`<h4>Formula</h4><div class="formula">C<sub>L</sub> = <span class="frac"><span class="num">C1&middot;C2</span><span class="den">C1+C2</span></span> + C<sub>stray</sub></div>`,
+        notesHTML:`<h4>Notes</h4><p>C<sub>stray</sub> covers PCB traces and IC pin capacitance, typically 2&ndash;5&nbsp;pF. To hit a target C<sub>L</sub> with C1=C2, size each load cap as C1 = C2 = 2&middot;(C<sub>L</sub> &minus; C<sub>stray</sub>).</p>`
+      });
+    case 'ppm':
+      return buildSimpleCalc(body, {
+        storageId:'crystal-ppm', title:'PPM ↔ Frequency Deviation',
+        fields:[
+          {key:'f0', label:'Nominal Frequency', cat:'frequency', unit:'MHz', default:16},
+          {key:'ppm', label:'Tolerance (ppm)', default:20},
+        ],
+        outputs:[ {key:'df', label:'Frequency Deviation', cat:'frequency', unit:'Hz', editable:true} ],
+        compute:(v)=>({ df: v.f0*(v.ppm/1e6) }),
+        inverse:{ df:(b,df)=>({ ppm: b.f0>0 ? df/b.f0*1e6 : 0 }) }, // f0 held constant
+        formulaHTML:`<h4>Formulas</h4>
+          <div class="formula">&Delta;f = f<sub>0</sub> &middot; (ppm / 10<sup>6</sup>)</div>
+          <div class="formula">ppm = (&Delta;f / f<sub>0</sub>) &middot; 10<sup>6</sup></div>`,
+        notesHTML:`<h4>Notes</h4><p>Edit either ppm or frequency deviation; the other updates. Nominal frequency stays fixed.</p>`
+      });
+  }
+}
+
+/* ---------- RF ---------- */
+const RF_FIELDS = [
+  {key:'vswr', label:'VSWR', decimals:4,
+    toGamma:v=> v>=1 ? (v-1)/(v+1) : 0,
+    fromGamma:g=> g<1 ? (1+g)/(1-g) : Infinity},
+  {key:'gamma', label:'Reflection Coefficient |Γ|', decimals:4,
+    toGamma:v=> Math.min(Math.max(v,0),0.999999),
+    fromGamma:g=> g},
+  {key:'rl', label:'Return Loss (dB)', decimals:3,
+    toGamma:v=> Math.pow(10,-v/20),
+    fromGamma:g=> g>0 ? -20*Math.log10(g) : Infinity},
+  {key:'ml', label:'Mismatch Loss (dB)', decimals:4,
+    toGamma:v=> Math.sqrt(Math.max(1-Math.pow(10,-v/10),0)),
+    fromGamma:g=> -10*Math.log10(Math.max(1-g*g,1e-15))},
+  {key:'refl', label:'Reflected Power (%)', decimals:3,
+    toGamma:v=> Math.sqrt(Math.max(v,0)/100),
+    fromGamma:g=> g*g*100},
+  {key:'through', label:'Through Power (%)', decimals:3,
+    toGamma:v=> Math.sqrt(Math.max(1-v/100,0)),
+    fromGamma:g=> (1-g*g)*100},
+];
+function renderRFSub(body){
+  const saved = Store.load('rf-vswr');
+  let gamma = (saved && typeof saved.gamma==='number') ? saved.gamma : RF_FIELDS[0].toGamma(2);
+  const rows = RF_FIELDS.map(f=>`<div class="field-row">
+    <div class="field-label">${f.label}</div>
+    <input class="field-input" data-rf="${f.key}" type="text" inputmode="decimal">
+    <div class="scrub"></div>
+  </div>`).join('');
+  body.innerHTML = `<div class="calc-page"><div class="calc-columns">
+    <div class="panel"><h3>VSWR &harr; Reflection / Loss / Power</h3>${rows}</div>
+    <div class="panel side-panel">
+      <h4>Formulas</h4>
+      <div class="formula">VSWR = <span class="frac"><span class="num">1+|&Gamma;|</span><span class="den">1&minus;|&Gamma;|</span></span></div>
+      <div class="formula">RL(dB) = &minus;20&middot;log<sub>10</sub>|&Gamma;|</div>
+      <div class="formula">ML(dB) = &minus;10&middot;log<sub>10</sub>(1&minus;|&Gamma;|<sup>2</sup>)</div>
+      <div class="formula">P<sub>refl</sub> = |&Gamma;|<sup>2</sup>&middot;100%, &nbsp; P<sub>thru</sub> = (1&minus;|&Gamma;|<sup>2</sup>)&middot;100%</div>
+      <h4>Notes</h4>
+      <p>All six describe one impedance mismatch through a shared |&Gamma;|. Edit any field — the rest update instantly.</p>
+      <p>A perfect match (|&Gamma;|=0) gives infinite return loss and 0% reflected power; total mismatch (|&Gamma;|=1) gives VSWR = &infin;.</p>
+    </div>
+  </div></div>`;
+  function paint(skip){
+    RF_FIELDS.forEach(f=>{
+      if(f.key===skip) return;
+      const el = body.querySelector('[data-rf="'+f.key+'"]');
+      const val = f.fromGamma(gamma);
+      el.value = isFinite(val) ? fmt(parseFloat(val.toFixed(f.decimals))) : '∞';
+      flashEl(el);
+    });
+  }
+  RF_FIELDS.forEach(f=>{
+    const el = body.querySelector('[data-rf="'+f.key+'"]');
+    el.addEventListener('input', ()=>{
+      const raw = parseFloat(el.value);
+      if(isNaN(raw)) return;
+      gamma = Math.min(Math.max(f.toGamma(raw),0),0.999999);
+      App.markDirty(true);
+      paint(f.key);
+    });
+  });
+  wireScrubs(body);
+  paint(null);
+  return { save(){ Store.save('rf-vswr', {gamma}); } };
+}
+CalculatorModules['rf'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'vswr', label:'VSWR / Reflection / Power'},
+    ], (id, body)=> renderRFSub(body), {persistKey:'rf'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+
+/* ---------- Transmission Line Impedance ---------- */
+function ellipK(k){ // complete elliptic integral of 1st kind via AGM
+  let a=1, b=Math.sqrt(1-k*k);
+  for(let i=0;i<24;i++){ const t=(a+b)/2; b=Math.sqrt(a*b); a=t; }
+  return Math.PI/(2*a);
+}
+function microstripZ(w,h,er){ // Hammerstad-Jensen
+  const u=w/h, ee=(er+1)/2+(er-1)/2/Math.sqrt(1+12/u);
+  const F1=6+(2*Math.PI-6)*Math.exp(-Math.pow(30.666/u,0.7528));
+  return { z:60/Math.sqrt(ee)*Math.log(F1/u+Math.sqrt(1+4/(u*u))), ee };
+}
+function striplineZ(w,t,b,er){ // IPC-2141
+  const x=4*b/(0.67*Math.PI*(0.8*w+t));
+  return x>1 ? 60/Math.sqrt(er)*Math.log(x) : 0;
+}
+function cpwgZ(w,s,h,er){ // conductor-backed CPW (Simons)
+  const a=w/2, b=w/2+s, k=a/b;
+  const k1=Math.tanh(Math.PI*a/(2*h))/Math.tanh(Math.PI*b/(2*h));
+  const kp=Math.sqrt(1-k*k), k1p=Math.sqrt(1-k1*k1);
+  const r=ellipK(k)/ellipK(kp), r1=ellipK(k1)/ellipK(k1p), q=r1/r;
+  const ee=(1+er*q)/(1+q);
+  return { z:60*Math.PI/Math.sqrt(ee)/(r+r1), ee };
+}
+const LEN = (key,label,def,unit,round)=>({key, label, cat:'length', unit:unit||'mm', default:def, round});
+const ER = {key:'er', label:'Substrate εr', default:4.4};
+const OUT_Z = (key,label,ed)=>({key, label, cat:'resistance', unit:'Ω', editable:!!ed});
+// Find trace width W (mm) so that zFn(W) = target. Z falls monotonically as W grows; bisect on a log scale around ref.
+function solveW(zFn, target, ref){
+  if(!(target>0) || !(ref>0)) return 0;
+  let lo=ref*1e-4, hi=ref*1e3;
+  for(let i=0;i<80;i++){
+    const mid=Math.sqrt(lo*hi);
+    if(zFn(mid) > target) lo=mid; else hi=mid;
+  }
+  return Math.sqrt(lo*hi);
+}
+const F_MS = `<h4>Formula (Hammerstad&ndash;Jensen)</h4>
+  <div class="formula">Z<sub>0</sub> = <span class="frac"><span class="num">60</span><span class="den">&radic;&epsilon;<sub>eff</sub></span></span> &middot; ln(F<sub>1</sub>H/W + &radic;(1+(2H/W)<sup>2</sup>))</div>
+  <div class="formula">F<sub>1</sub> = 6 + (2&pi;&minus;6)&middot;e<sup>&minus;(30.666H/W)<sup>0.7528</sup></sup></div>`;
+const F_SL = `<h4>Formula (IPC-2141)</h4>
+  <div class="formula">Z<sub>0</sub> = <span class="frac"><span class="num">60</span><span class="den">&radic;&epsilon;<sub>r</sub></span></span> &middot; ln<span>(</span><span class="frac"><span class="num">4b</span><span class="den">0.67&pi;(0.8W+T)</span></span><span>)</span></div>
+  <p style="font-size:12px">b = plane-to-plane spacing. Valid for W/b &lt; 0.35, T/b &lt; 0.25.</p>`;
+
+CalculatorModules['transmission-line'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'single', label:'Single-Ended'},
+      {id:'diff', label:'Differential'},
+    ], (id, body)=> buildTabbedCalculator(body,
+      id==='single'
+        ? [{id:'ms',label:'Microstrip'},{id:'sl',label:'Stripline'},{id:'cpwg',label:'Coplanar (grounded)'}]
+        : [{id:'ms',label:'Edge-Coupled Microstrip'},{id:'sl',label:'Edge-Coupled Stripline'},{id:'cpwg',label:'Edge-Coupled Coplanar (grounded)'}],
+      (sub, b)=> renderTLine(id, sub, b), {sub:true, persistKey:'tl-inner-'+id}), {persistKey:'tl-outer'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderTLine(cat, type, body){
+  const key = 'tl-'+cat+'-'+type;
+  if(cat==='single' && type==='ms') return buildSimpleCalc(body, {
+    storageId:key, title:'Microstrip Impedance',
+    fields:[ER, LEN('w','Trace Width (W)',0.3,null,{mm:2,mil:0}), LEN('h','Dielectric Height (H)',0.2)],
+    outputs:[OUT_Z('z','Z0',true), {key:'ee', label:'εeff'}],
+    compute:v=>{ if(v.w<=0||v.h<=0) return {z:0,ee:0}; const r=microstripZ(v.w,v.h,v.er); return {z:r.z, ee:r.ee}; },
+    inverse:{ z:(b,target)=>({ w: solveW(w=>microstripZ(w,b.h,b.er).z, target, b.h) }) },
+    formulaHTML:F_MS,
+    notesHTML:`<h4>Notes</h4><p>Surface trace over one plane. Copper thickness is ignored; accurate to ~1% for 0.05 &lt; W/H &lt; 20.</p>`
+  });
+  if(cat==='single' && type==='sl') return buildSimpleCalc(body, {
+    storageId:key, title:'Symmetric Stripline Impedance',
+    fields:[ER, LEN('w','Trace Width (W)',0.15,null,{mm:2,mil:0}), LEN('t','Copper Thickness (T)',35,'µm'), LEN('b','Plane Spacing (b)',0.4)],
+    outputs:[OUT_Z('z','Z0',true)],
+    compute:v=>({z:striplineZ(v.w,v.t,v.b,v.er)}),
+    inverse:{ z:(b,target)=>({ w: solveW(w=>striplineZ(w,b.t,b.b,b.er), target, b.b) }) },
+    formulaHTML:F_SL,
+    notesHTML:`<h4>Notes</h4><p>Trace centred between two planes. Outputs 0 if the geometry is outside the formula's range.</p>`
+  });
+  if(cat==='single' && type==='cpwg') return buildSimpleCalc(body, {
+    storageId:key, title:'Grounded Coplanar Waveguide Impedance',
+    fields:[ER, LEN('w','Trace Width (W)',0.3,null,{mm:2,mil:0}), LEN('s','Gap to Coplanar Ground (S)',0.2), LEN('h','Dielectric Height (H)',0.2)],
+    outputs:[OUT_Z('z','Z0',true), {key:'ee', label:'εeff'}],
+    compute:v=>{ if(v.w<=0||v.s<=0||v.h<=0) return {z:0,ee:0}; const r=cpwgZ(v.w,v.s,v.h,v.er); return {z:r.z, ee:r.ee}; },
+    inverse:{ z:(b,target)=>({ w: solveW(w=>cpwgZ(w,b.s,b.h,b.er).z, target, b.h) }) },
+    formulaHTML:`<h4>Formula (Simons)</h4>
+      <div class="formula">Z<sub>0</sub> = <span class="frac"><span class="num">60&pi;</span><span class="den">&radic;&epsilon;<sub>eff</sub></span></span> &middot; <span class="frac"><span class="num">1</span><span class="den">K(k)/K(k&prime;) + K(k<sub>1</sub>)/K(k<sub>1</sub>&prime;)</span></span></div>
+      <div class="formula">&epsilon;<sub>eff</sub> = <span class="frac"><span class="num">1 + &epsilon;<sub>r</sub>&middot;q</span><span class="den">1 + q</span></span>, &nbsp; q = <span class="frac"><span class="num">K(k&prime;)K(k<sub>1</sub>)</span><span class="den">K(k)K(k<sub>1</sub>&prime;)</span></span></div>
+      <p style="font-size:12px">k = a/b, k<sub>1</sub> = tanh(&pi;a/2H)/tanh(&pi;b/2H), a = W/2, b = W/2+S. K = complete elliptic integral.</p>`,
+    notesHTML:`<h4>Notes</h4><p>Trace with coplanar ground pours both sides and a ground plane below. Zero thickness assumed.</p>`
+  });
+  if(cat==='diff' && type==='ms') return buildSimpleCalc(body, {
+    storageId:key, title:'Edge-Coupled Microstrip (Differential)',
+    fields:[ER, LEN('w','Trace Width (W)',0.3), LEN('h','Dielectric Height (H)',0.2), LEN('s','Trace Spacing (S)',0.2)],
+    outputs:[OUT_Z('zd','Z diff'), OUT_Z('z','Z0 single-ended')],
+    compute:v=>{ if(v.w<=0||v.h<=0) return {zd:0,z:0}; const z=microstripZ(v.w,v.h,v.er).z; return {z, zd:2*z*(1-0.48*Math.exp(-0.96*v.s/v.h))}; },
+    formulaHTML:`<h4>Formula (IPC-2141)</h4><div class="formula">Z<sub>diff</sub> = 2&middot;Z<sub>0</sub>&middot;(1 &minus; 0.48&middot;e<sup>&minus;0.96&middot;S/H</sup>)</div><p style="font-size:12px">Z<sub>0</sub>: single-ended microstrip (Hammerstad&ndash;Jensen).</p>`,
+    notesHTML:`<h4>Notes</h4><p>Approximation for loosely to moderately coupled pairs. Use a field solver for final tight-tolerance designs.</p>`
+  });
+  if(cat==='diff' && type==='sl') return buildSimpleCalc(body, {
+    storageId:key, title:'Edge-Coupled Stripline (Differential)',
+    fields:[ER, LEN('w','Trace Width (W)',0.12), LEN('t','Copper Thickness (T)',35,'µm'), LEN('b','Plane Spacing (b)',0.4), LEN('s','Trace Spacing (S)',0.15)],
+    outputs:[OUT_Z('zd','Z diff'), OUT_Z('z','Z0 single-ended')],
+    compute:v=>{ const z=striplineZ(v.w,v.t,v.b,v.er); return {z, zd:2*z*(1-0.347*Math.exp(-2.9*v.s/v.b))}; },
+    formulaHTML:`<h4>Formula (IPC-2141)</h4><div class="formula">Z<sub>diff</sub> = 2&middot;Z<sub>0</sub>&middot;(1 &minus; 0.347&middot;e<sup>&minus;2.9&middot;S/b</sup>)</div>`,
+    notesHTML:`<h4>Notes</h4><p>Pair centred between two planes. Z<sub>0</sub> from the single-ended stripline formula.</p>`
+  });
+  return buildSimpleCalc(body, {
+    storageId:key, title:'Edge-Coupled Coplanar, Grounded (Differential)',
+    fields:[ER, LEN('w','Trace Width (W)',0.3), LEN('gp','Gap to Coplanar Ground (Gp)',0.2), LEN('h','Dielectric Height (H)',0.2), LEN('s','Trace Spacing (S)',0.2)],
+    outputs:[OUT_Z('zd','Z diff'), OUT_Z('z','Z0 single-ended')],
+    compute:v=>{ if(v.w<=0||v.gp<=0||v.h<=0) return {zd:0,z:0}; const z=cpwgZ(v.w,v.gp,v.h,v.er).z; return {z, zd:2*z*(1-0.48*Math.exp(-0.96*v.s/v.h))}; },
+    formulaHTML:`<h4>Formula (IPC-2141-style)</h4><div class="formula">Z<sub>diff</sub> = 2&middot;Z<sub>0</sub>&middot;(1 &minus; 0.48&middot;e<sup>&minus;0.96&middot;S/H</sup>)</div><p style="font-size:12px">Z<sub>0</sub>: single-ended grounded CPW (Simons).</p>`,
+    notesHTML:`<h4>Notes</h4><p>Applies the same coupling correction used for differential microstrip to a CPWG pair — a practical approximation, not a closed-form coupled-CPW solution. Use a field solver (or odd-mode elliptic-integral analysis) for tight-tolerance designs.</p>`
+  });
+}
+
+/* ---------- Bandwidth & Max Length ---------- */
+const C0 = 299792458;
+CalculatorModules['bandwidth'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'bw', label:'Bandwidth'},
+      {id:'lt', label:'Max Length (Rise Time)'},
+      {id:'lf', label:'Max Length (Frequency)'},
+    ], renderBwSub, {persistKey:'bandwidth'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderBwSub(id, body){
+  const EE = {key:'ee', label:'Effective εr (εreff)', default:3.2};
+  if(id==='bw') return buildSimpleCalc(body, {
+    storageId:'bw-bw', title:'Signal Bandwidth from Rise Time',
+    fields:[{key:'tr', label:'Rise Time (10–90%)', cat:'time', unit:'ns', default:1}],
+    outputs:[{key:'bw', label:'Bandwidth', cat:'frequency', unit:'MHz', editable:true}, {key:'fk', label:'Knee Frequency', cat:'frequency', unit:'MHz'}],
+    compute:v=>({ bw: v.tr>0?0.35/v.tr:0, fk: v.tr>0?0.5/v.tr:0 }),
+    inverse:{ bw:(b,bw)=>({ tr: bw>0?0.35/bw:0 }) },
+    formulaHTML:`<h4>Formulas</h4><div class="formula">BW = <span class="frac"><span class="num">0.35</span><span class="den">t<sub>r</sub></span></span></div><div class="formula">f<sub>knee</sub> = <span class="frac"><span class="num">0.5</span><span class="den">t<sub>r</sub></span></span></div>`,
+    notesHTML:`<h4>Notes</h4><p>Rise time is 10&ndash;90%. Edit bandwidth to back-solve rise time. Most signal energy sits below the knee frequency.</p>`
+  });
+  if(id==='lt') return buildSimpleCalc(body, {
+    storageId:'bw-lt', title:'Max Unterminated Length from Rise Time',
+    fields:[{key:'tr', label:'Rise Time', cat:'time', unit:'ns', default:1}, EE, {key:'n', label:'Rise-Time Divisor (N)', default:6}],
+    outputs:[{key:'l', label:'Max Length', cat:'length', unit:'mm'}],
+    compute:v=>({ l: (v.tr>0&&v.ee>0&&v.n>0) ? v.tr*C0/(v.n*Math.sqrt(v.ee))*1000 : 0 }),
+    formulaHTML:`<h4>Formula</h4><div class="formula">l<sub>max</sub> = <span class="frac"><span class="num">c &middot; t<sub>r</sub></span><span class="den">N &middot; &radic;&epsilon;<sub>r eff</sub></span></span></div>`,
+    notesHTML:`<h4>Notes</h4><p>Keeps one-way trace delay under t<sub>r</sub>/N. N = 6 is a common conservative rule; longer traces need termination.</p>`
+  });
+  return buildSimpleCalc(body, {
+    storageId:'bw-lf', title:'Max Length from Frequency',
+    fields:[{key:'f', label:'Frequency', cat:'frequency', unit:'MHz', default:100}, EE, {key:'n', label:'Wavelength Divisor (N)', default:10}],
+    outputs:[{key:'l', label:'Max Length', cat:'length', unit:'mm'}],
+    compute:v=>({ l: (v.f>0&&v.ee>0&&v.n>0) ? C0/(v.f*Math.sqrt(v.ee)*v.n)*1000 : 0 }),
+    formulaHTML:`<h4>Formula</h4><div class="formula">l<sub>max</sub> = <span class="frac"><span class="num">c</span><span class="den">N &middot; f &middot; &radic;&epsilon;<sub>r eff</sub></span></span> = <span class="frac"><span class="num">&lambda;</span><span class="den">N</span></span></div>`,
+    notesHTML:`<h4>Notes</h4><p>Traces shorter than &lambda;/10 behave as lumped elements; longer ones need transmission-line treatment.</p>`
+  });
+}
+
+/* ---------- Conversion (all bidirectional) ---------- */
+CalculatorModules['conversion'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'len', label:'Distance'},
+      {id:'db', label:'dB ↔ Gain'},
+      {id:'polar', label:'Rectangular ↔ Polar'},
+    ], renderConvSub, {persistKey:'conversion'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderConvSub(id, body){
+  if(id==='len') return buildSimpleCalc(body, {
+    storageId:'conv-len', title:'Distance',
+    fields:[LEN('a','Value',1)],
+    outputs:[{key:'b', label:'Converted', cat:'length', unit:'mil', editable:true}],
+    compute:v=>({b:v.a}), inverse:{ b:(v,b)=>({a:b}) },
+    formulaHTML:`<h4>Factors</h4><div class="formula">1 in = 25.4 mm = 1000 mil</div><div class="formula">1 mil = 25.4 &micro;m</div>`,
+    notesHTML:`<h4>Notes</h4><p>Edit either side, or change either unit.</p>`
+  });
+  if(id==='db') return buildSimpleCalc(body, {
+    storageId:'conv-db', title:'Decibels ↔ Voltage Gain',
+    fields:[{key:'db', label:'Gain (dB)', default:20}],
+    outputs:[{key:'g', label:'Voltage Gain (V/V)', editable:true}, {key:'p', label:'Power Ratio (W/W)'}],
+    compute:v=>({ g:Math.pow(10,v.db/20), p:Math.pow(10,v.db/10) }),
+    inverse:{ g:(v,g)=>({ db: g>0 ? 20*Math.log10(g) : 0 }) },
+    formulaHTML:`<h4>Formulas</h4><div class="formula">G<sub>V</sub> = 10<sup>dB/20</sup></div><div class="formula">dB = 20&middot;log<sub>10</sub>(G<sub>V</sub>)</div><div class="formula">G<sub>P</sub> = 10<sup>dB/10</sup></div>`,
+    notesHTML:`<h4>Notes</h4><p>Voltage gain assumes equal impedances at both points.</p>`
+  });
+  return buildSimpleCalc(body, {
+    storageId:'conv-polar', title:'Rectangular ↔ Polar',
+    fields:[{key:'x', label:'X (real)', default:3}, {key:'y', label:'Y (imaginary)', default:4}],
+    outputs:[
+      {key:'m', label:'Magnitude', editable:true},
+      {key:'a', label:'Angle', cat:'angle', unit:'°', editable:true},
+    ],
+    compute:v=>({ m:Math.hypot(v.x,v.y), a:Math.atan2(v.y,v.x)*180/Math.PI }),
+    inverse:{
+      m:(v,m)=>{ const t=Math.atan2(v.y,v.x); return { x:m*Math.cos(t), y:m*Math.sin(t) }; }, // angle held
+      a:(v,a)=>{ const m=Math.hypot(v.x,v.y), t=a*Math.PI/180; return { x:m*Math.cos(t), y:m*Math.sin(t) }; }, // magnitude held
+    },
+    formulaHTML:`<h4>Formulas</h4><div class="formula">r = &radic;(x<sup>2</sup>+y<sup>2</sup>), &nbsp; &theta; = atan2(y, x)</div><div class="formula">x = r&middot;cos&theta;, &nbsp; y = r&middot;sin&theta;</div>`,
+    notesHTML:`<h4>Notes</h4><p>Editing magnitude keeps the angle; editing angle keeps the magnitude.</p>`
+  });
+}
+
+/* =========================================================
+   SECTION: TOOLBOX
+========================================================= */
+/* ---------- E-series resistors ---------- */
+const E_SERIES = {
+  E12:[1.0,1.2,1.5,1.8,2.2,2.7,3.3,3.9,4.7,5.6,6.8,8.2],
+  E24:[1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1],
+  E48:[1.00,1.05,1.10,1.15,1.21,1.27,1.33,1.40,1.47,1.54,1.62,1.69,1.78,1.87,1.96,2.05,2.15,2.26,2.37,2.49,2.61,2.74,2.87,3.01,3.16,3.32,3.48,3.65,3.83,4.02,4.22,4.42,4.64,4.87,5.11,5.36,5.62,5.90,6.19,6.49,6.81,7.15,7.50,7.87,8.25,8.66,9.09,9.53],
+  E96:[1.00,1.02,1.05,1.07,1.10,1.13,1.15,1.18,1.21,1.24,1.27,1.30,1.33,1.37,1.40,1.43,1.47,1.50,1.54,1.58,1.62,1.65,1.69,1.74,1.78,1.82,1.87,1.91,1.96,2.00,2.05,2.10,2.15,2.21,2.26,2.32,2.37,2.43,2.49,2.55,2.61,2.67,2.74,2.80,2.87,2.94,3.01,3.09,3.16,3.24,3.32,3.40,3.48,3.57,3.65,3.74,3.83,3.92,4.02,4.12,4.22,4.32,4.42,4.53,4.64,4.75,4.87,4.99,5.11,5.23,5.36,5.49,5.62,5.76,5.90,6.04,6.19,6.34,6.49,6.65,6.81,6.98,7.15,7.32,7.50,7.68,7.87,8.06,8.25,8.45,8.66,8.87,9.09,9.31,9.53,9.76],
+};
+const E_OPTS = Object.keys(E_SERIES).map(v=>({value:v, label:v}));
+function eValues(series, dLo, dHi){ // all series values across decades 10^dLo .. 10^dHi
+  const out = [];
+  for(let d=dLo; d<=dHi; d++){ const p=Math.pow(10,d); for(const m of E_SERIES[series]) out.push(m*p); }
+  return out;
+}
+function eNearest(t, series){
+  let lo=0, hi=Infinity;
+  const e = Math.floor(Math.log10(t));
+  for(const v of eValues(series, e-1, e+1)){
+    if(v<=t*(1+1e-9) && v>lo) lo=v;
+    if(v>=t*(1-1e-9) && v<hi) hi=v;
+  }
+  return { lo, hi, near: (t-lo <= hi-t) ? lo : hi };
+}
+const BALANCE_WEIGHT = 2.5; // Optimum mode: equivalent error-% cost per decade of R1:R2 imbalance
+function eCombo(t, series, weight){
+  weight = weight || 0;
+  const e = Math.floor(Math.log10(t));
+  const sv = eValues(series, e-2, e), pv = eValues(series, e, e+2);
+  function search(vals, isSeries){
+    let best = {score:Infinity, a:0, b:0, r:0};
+    for(let i=0;i<vals.length;i++) for(let j=i;j<vals.length;j++){
+      const r = isSeries ? vals[i]+vals[j] : (vals[i]*vals[j])/(vals[i]+vals[j]);
+      const errPct = Math.abs(r-t)/t*100;
+      const decades = Math.log10(vals[j]/vals[i]); // vals sorted ascending, j>=i, so >=0
+      const score = errPct + weight*decades;
+      if(score<best.score) best = {score, a:vals[i], b:vals[j], r};
+    }
+    return best;
+  }
+  return { bs: search(sv, true), bp: search(pv, false) };
+}
+const E_TARGET = {key:'t', label:'Target Resistance', cat:'resistance', unit:'kΩ', default:2350};
+const E_SERIES_FIELD = {key:'series', label:'Series', type:'select', options:E_OPTS};
+const R_OUT = (key,label)=>({key, label, cat:'resistance', unit:'kΩ'});
+CalculatorModules['e-series'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'near', label:'Nearest Value'},
+      {id:'combo', label:'Best Two-Resistor Combo'},
+    ], (id, body)=> id==='near' ? buildSimpleCalc(body, {
+      storageId:'eseries-near', title:'Nearest Standard Value',
+      fields:[E_TARGET, E_SERIES_FIELD],
+      outputs:[R_OUT('near','Nearest'), {key:'err', label:'Error (%)'}, R_OUT('lo','Next Lower'), R_OUT('hi','Next Higher')],
+      compute:v=>{ if(!(v.t>0)) return {near:0,err:0,lo:0,hi:0}; const r=eNearest(v.t, v.series); return { near:r.near, err:(r.near-v.t)/v.t*100, lo:r.lo, hi:r.hi }; },
+      formulaHTML:`<h4>Series Rule</h4><div class="formula">R<sub>k</sub> &asymp; 10<sup>k/N</sup>, &nbsp; N = 12, 24, 48, 96</div><p style="font-size:12px">Values are rounded to 2 (E12/E24) or 3 (E48/E96) significant digits.</p>`,
+      notesHTML:`<h4>Notes</h4><p>Typical tolerance: E12 &plusmn;10%, E24 &plusmn;5%, E48 &plusmn;2%, E96 &plusmn;1%. Nearest is measured by absolute difference.</p>`
+    }) : renderECombo(body), {persistKey:'e-series'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+function renderECombo(body){
+  const saved = Store.load('eseries-combo') || {};
+  const state = {
+    target: saved.target || { value:2.35, unit:'kΩ' },
+    series: saved.series || 'E24',
+    mode: saved.mode || 'optimum',
+    lockS: saved.lockS || false,
+    lockP: saved.lockP || false,
+    sLockedR1: saved.sLockedR1 || null,
+    pLockedR1: saved.pLockedR1 || null,
+  };
+  const unitOpts = sel => Object.keys(UNIT_DEFS.resistance.units).map(u=>`<option value="${u}" ${u===sel?'selected':''}>${u}</option>`).join('');
+  function compute(){
+    const t = toBase(state.target.value, state.target.unit, 'resistance');
+    let s = {a:0,b:0,r:0,e:0,valid:false}, p = {a:0,b:0,r:0,e:0,valid:false};
+    if(t>0){
+      const weight = state.mode==='precise' ? 0 : BALANCE_WEIGHT;
+      const {bs,bp} = eCombo(t, state.series, weight);
+      if(state.lockS){
+        if(!state.sLockedR1) state.sLockedR1 = { value: parseFloat(fmt(fromBase(bs.a,'kΩ','resistance'))), unit:'kΩ' };
+        const r1 = toBase(state.sLockedR1.value, state.sLockedR1.unit, 'resistance');
+        const r2ideal = t - r1;
+        if(r2ideal>0){ const r2=eNearest(r2ideal, state.series).near; const r=r1+r2; s={a:r1,b:r2,r,e:(r-t)/t*100,valid:true}; }
+        else s = {a:r1,b:0,r:r1,e:0,valid:false};
+      } else {
+        s = {a:bs.a,b:bs.b,r:bs.r,e:(bs.r-t)/t*100,valid:true};
+      }
+      if(state.lockP){
+        if(!state.pLockedR1) state.pLockedR1 = { value: parseFloat(fmt(fromBase(bp.a,'kΩ','resistance'))), unit:'kΩ' };
+        const r1 = toBase(state.pLockedR1.value, state.pLockedR1.unit, 'resistance');
+        const inv = r1>0 ? (1/t - 1/r1) : -1;
+        if(inv>0){ const r2ideal=1/inv; const r2=eNearest(r2ideal, state.series).near; const r=(r1*r2)/(r1+r2); p={a:r1,b:r2,r,e:(r-t)/t*100,valid:true}; }
+        else p = {a:r1,b:0,r:0,e:0,valid:false};
+      } else {
+        p = {a:bp.a,b:bp.b,r:bp.r,e:(bp.r-t)/t*100,valid:true};
+      }
+    }
+    return {s,p};
+  }
+  const $ = id => body.querySelector('#'+id);
+  function updateOutputs(){
+    const {s,p} = compute();
+    if(!state.lockS){ const r1el=$('ec-s-r1'); r1el.value = fmt(fromBase(s.a,'kΩ','resistance')); flashEl(r1el); }
+    $('ec-s-r2').value = fmt(fromBase(s.b,'kΩ','resistance'))+' kΩ';
+    $('ec-s-tot').value = s.valid ? fmt(fromBase(s.r,'kΩ','resistance'))+' kΩ  ('+s.e.toFixed(2)+'%)' : 'No solution (R1 ≥ target)';
+    if(!state.lockP){ const r1el=$('ec-p-r1'); r1el.value = fmt(fromBase(p.a,'kΩ','resistance')); flashEl(r1el); }
+    $('ec-p-r2').value = fmt(fromBase(p.b,'kΩ','resistance'))+' kΩ';
+    $('ec-p-tot').value = p.valid ? fmt(fromBase(p.r,'kΩ','resistance'))+' kΩ  ('+p.e.toFixed(2)+'%)' : 'No solution (R1 ≤ target)';
+    [$('ec-s-r2'),$('ec-s-tot'),$('ec-p-r2'),$('ec-p-tot')].forEach(flashEl);
+  }
+  function renderFull(){
+    const {s,p} = compute();
+    body.innerHTML = `<div class="calc-columns">
+      <div class="panel">
+        <h3>Best Two-Resistor Combination</h3>
+        <div class="field-row">
+          <div class="field-label">Target Resistance</div>
+          <input class="field-input" id="ec-t" type="number" step="any" value="${state.target.value}">
+          <div class="scrub"></div>
+          <select class="field-unit" id="ec-t-unit">${unitOpts(state.target.unit)}</select>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Series</div>
+          <select class="field-input" id="ec-series">${E_OPTS.map(o=>`<option value="${o.value}" ${o.value===state.series?'selected':''}>${o.label}</option>`).join('')}</select>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Search Mode</div>
+          <select class="field-input" id="ec-mode">
+            <option value="optimum" ${state.mode==='optimum'?'selected':''}>Optimum (balanced)</option>
+            <option value="precise" ${state.mode==='precise'?'selected':''}>Precise (lowest error)</option>
+          </select>
+        </div>
+        <hr class="sep">
+        <h4 style="margin:4px 0 8px">Series: R1 + R2</h4>
+        <label class="sk-filter-opt" style="margin-bottom:6px"><input type="checkbox" id="ec-lock-s" ${state.lockS?'checked':''}><span>Lock R1, solve R2</span></label>
+        <div class="field-row">
+          <div class="field-label">R1</div>
+          <input class="field-input" id="ec-s-r1" type="number" step="any" value="${state.lockS ? state.sLockedR1.value : fmt(fromBase(s.a,'kΩ','resistance'))}" ${state.lockS?'':'readonly'}>
+          ${state.lockS?'<div class="scrub"></div>':''}
+          <select class="field-unit" id="ec-s-r1-unit" ${state.lockS?'':'disabled'}>${unitOpts(state.lockS?state.sLockedR1.unit:'kΩ')}</select>
+        </div>
+        <div class="output-block field-row"><div class="field-label">R2 (standard)</div><input class="field-input" id="ec-s-r2" type="text" readonly></div>
+        <div class="output-block field-row"><div class="field-label">Total / Error</div><input class="field-input" id="ec-s-tot" type="text" readonly></div>
+        <hr class="sep">
+        <h4 style="margin:4px 0 8px">Parallel: R1 &Vert; R2</h4>
+        <label class="sk-filter-opt" style="margin-bottom:6px"><input type="checkbox" id="ec-lock-p" ${state.lockP?'checked':''}><span>Lock R1, solve R2</span></label>
+        <div class="field-row">
+          <div class="field-label">R1</div>
+          <input class="field-input" id="ec-p-r1" type="number" step="any" value="${state.lockP ? state.pLockedR1.value : fmt(fromBase(p.a,'kΩ','resistance'))}" ${state.lockP?'':'readonly'}>
+          ${state.lockP?'<div class="scrub"></div>':''}
+          <select class="field-unit" id="ec-p-r1-unit" ${state.lockP?'':'disabled'}>${unitOpts(state.lockP?state.pLockedR1.unit:'kΩ')}</select>
+        </div>
+        <div class="output-block field-row"><div class="field-label">R2 (standard)</div><input class="field-input" id="ec-p-r2" type="text" readonly></div>
+        <div class="output-block field-row"><div class="field-label">Total / Error</div><input class="field-input" id="ec-p-tot" type="text" readonly></div>
+      </div>
+      <div class="panel side-panel">
+        <h4>Formulas</h4>
+        <div class="formula">R<sub>s</sub> = R<sub>1</sub> + R<sub>2</sub></div>
+        <div class="formula">R<sub>p</sub> = <span class="frac"><span class="num">R<sub>1</sub>&middot;R<sub>2</sub></span><span class="den">R<sub>1</sub> + R<sub>2</sub></span></span></div>
+        <h4>Notes</h4>
+        <p><b>Optimum</b> (default): minimizes error% + ${BALANCE_WEIGHT}&times;decades-apart(R1,R2). A purely lowest-error pick can land on lopsided values (e.g. 2k with 100k) that happen to average out — this instead favors two resistors of comparable size, trading a little accuracy for a far more practical, tolerance-friendly pair.</p>
+        <p><b>Precise</b>: pure exhaustive search for the single lowest error%, regardless of how mismatched R1 and R2 are.</p>
+        <p>Mode only affects the unlocked side — once R1 is locked, R2 is simply the nearest standard value, so there's nothing to balance.</p>
+        <p>Locked: R1 is exactly what you type (not snapped to the series). R2 is solved exactly for the target, then snapped to the nearest standard value.</p>
+        <p>Series needs R1 &lt; target to have a solution. Parallel needs R1 &gt; target.</p>
+      </div>
+    </div>`;
+    wireScrubs(body);
+    updateOutputs();
+    $('ec-t').addEventListener('input', ()=>{ state.target.value=parseFloat($('ec-t').value)||0; App.markDirty(true); updateOutputs(); });
+    $('ec-t-unit').addEventListener('change', e=>{
+      const nb = toBase(state.target.value, state.target.unit, 'resistance');
+      state.target.unit = e.target.value; state.target.value = parseFloat(fmt(fromBase(nb, state.target.unit, 'resistance')));
+      App.markDirty(true); renderFull();
+    });
+    $('ec-series').addEventListener('change', e=>{ state.series=e.target.value; App.markDirty(true); updateOutputs(); });
+    $('ec-mode').addEventListener('change', e=>{ state.mode=e.target.value; App.markDirty(true); updateOutputs(); });
+    $('ec-lock-s').addEventListener('change', e=>{ state.lockS=e.target.checked; App.markDirty(true); renderFull(); });
+    $('ec-lock-p').addEventListener('change', e=>{ state.lockP=e.target.checked; App.markDirty(true); renderFull(); });
+    if(state.lockS){
+      $('ec-s-r1').addEventListener('input', ()=>{ state.sLockedR1.value=parseFloat($('ec-s-r1').value)||0; App.markDirty(true); updateOutputs(); });
+      $('ec-s-r1-unit').addEventListener('change', e=>{
+        const nb=toBase(state.sLockedR1.value, state.sLockedR1.unit,'resistance');
+        state.sLockedR1.unit=e.target.value; state.sLockedR1.value=parseFloat(fmt(fromBase(nb, state.sLockedR1.unit,'resistance')));
+        App.markDirty(true); renderFull();
+      });
+    }
+    if(state.lockP){
+      $('ec-p-r1').addEventListener('input', ()=>{ state.pLockedR1.value=parseFloat($('ec-p-r1').value)||0; App.markDirty(true); updateOutputs(); });
+      $('ec-p-r1-unit').addEventListener('change', e=>{
+        const nb=toBase(state.pLockedR1.value, state.pLockedR1.unit,'resistance');
+        state.pLockedR1.unit=e.target.value; state.pLockedR1.value=parseFloat(fmt(fromBase(nb, state.pLockedR1.unit,'resistance')));
+        App.markDirty(true); renderFull();
+      });
+    }
+  }
+  renderFull();
+  return { save(){ Store.save('eseries-combo', state); } };
+}
+
+/* ---------- Capacitor code decoder ---------- */
+const CAP_TOL = {B:'±0.1 pF', C:'±0.25 pF', D:'±0.5 pF', F:'±1%', G:'±2%', J:'±5%', K:'±10%', M:'±20%', Z:'+80% / −20%'};
+function decodeCap(raw){
+  let s = raw.trim().toUpperCase(), tol = '—', m;
+  if(s.length>1 && CAP_TOL[s.slice(-1)] && /\d/.test(s.slice(-2,-1))){ tol = CAP_TOL[s.slice(-1)]; s = s.slice(0,-1); }
+  let pF = NaN;
+  if(/^\d{3}$/.test(s)){ const d=+s[2]; pF = +s.slice(0,2) * (d===8 ? 0.01 : d===9 ? 0.1 : Math.pow(10,d)); }
+  else if(/^\d{1,2}$/.test(s)) pF = +s;
+  else if((m = s.match(/^(\d*)([RPNU])(\d*)$/)) && (m[1]||m[3])) pF = parseFloat((m[1]||'0')+'.'+(m[3]||'0')) * {R:1,P:1,N:1e3,U:1e6}[m[2]];
+  return { pF, tol };
+}
+function encodeCap(pF){
+  if(!(pF>0)) return '—';
+  if(pF<10) return pF.toFixed(1).replace('.','R');
+  let e = Math.floor(Math.log10(pF))-1, mant = Math.round(pF/Math.pow(10,e));
+  if(mant>=100){ mant = Math.round(mant/10); e++; }
+  return e>7 ? '—' : `${mant}${e}`;
+}
+CalculatorModules['cap-decoder'] = {
+  render(main){
+    const sv = Store.load('cap-decoder') || {};
+    let ru = sv.ru ?? 'nF';
+    const opts = sel => Object.keys(UNIT_DEFS.capacitance.units).map(u=>`<option ${u===sel?'selected':''}>${u}</option>`).join('');
+    main.innerHTML = `<div class="calc-page"><div class="calc-columns">
+      <div class="panel"><h3>Marking &rarr; Value</h3>
+        <div class="field-row"><div class="field-label">Marking</div><input class="field-input" id="cd-code" type="text" spellcheck="false" value="${sv.code ?? '104'}"></div>
+        <div class="output-block field-row"><div class="field-label">Capacitance</div><input class="field-input" id="cd-val" readonly><select class="field-unit" id="cd-unit">${opts(sv.unit ?? 'nF')}</select></div>
+        <div class="output-block field-row"><div class="field-label">Tolerance</div><input class="field-input" id="cd-tol" readonly></div>
+        <hr class="sep"><h3>Value &rarr; Marking</h3>
+        <div class="field-row"><div class="field-label">Capacitance</div><input class="field-input" id="cd-rv" type="number" value="${sv.rv ?? 100}"><div class="scrub"></div><select class="field-unit" id="cd-ru">${opts(ru)}</select></div>
+        <div class="output-block field-row"><div class="field-label">Marking</div><input class="field-input" id="cd-rc" readonly></div>
+      </div>
+      <div class="panel side-panel">
+        <h4>Formula</h4><div class="formula">C = XY &times; 10<sup>Z</sup> pF</div>
+        <p style="font-size:12px">XY = first two digits, Z = multiplier digit. Z = 8 &rarr; &times;0.01, Z = 9 &rarr; &times;0.1.</p>
+        <h4>Accepted Formats</h4>
+        <p>3-digit (<b>104</b> = 100 nF), 1&ndash;2 digit pF (<b>47</b>), decimal-marker (<b>4R7</b> = 4.7 pF, <b>4n7</b> = 4.7 nF, <b>u47</b> = 0.47 &micro;F). An optional tolerance letter may follow: B, C, D, F, G, J, K, M, Z (<b>104K</b>).</p>
+        <h4>Notes</h4><p>Value &rarr; Marking rounds to two significant digits.</p>
+      </div></div></div>`;
+    const $ = id => main.querySelector('#'+id);
+    wireScrubs(main);
+    function update(){
+      const d = decodeCap($('cd-code').value);
+      $('cd-val').value = isNaN(d.pF) ? '—' : fmt(fromBase(d.pF*1e-12, $('cd-unit').value, 'capacitance'));
+      $('cd-tol').value = d.tol;
+      $('cd-rc').value = encodeCap(toBase(parseFloat($('cd-rv').value)||0, $('cd-ru').value, 'capacitance')*1e12);
+      flashEl($('cd-val')); flashEl($('cd-rc'));
+    }
+    ['cd-code','cd-rv'].forEach(id=> $(id).addEventListener('input', ()=>{ App.markDirty(true); update(); }));
+    $('cd-unit').addEventListener('change', update);
+    $('cd-ru').addEventListener('change', e=>{
+      const b = toBase(parseFloat($('cd-rv').value)||0, ru, 'capacitance');
+      ru = e.target.value;
+      $('cd-rv').value = fmt(fromBase(b, ru, 'capacitance'));
+      App.markDirty(true); update();
+    });
+    update();
+    this._save = ()=> Store.save('cap-decoder', { code:$('cd-code').value, unit:$('cd-unit').value, rv:parseFloat($('cd-rv').value)||0, ru:$('cd-ru').value });
+  },
+  save(){ if(this._save) this._save(); }
+};
+
+/* ---------- Pinout library ---------- */
+const PINOUTS = [
+  { id:'usbc', label:'USB-C',
+    tables:[{ title:'USB Type-C Receptacle (24 pins)', cols:['Pin','Signal','Function'], rows:[
+      ['A1','GND','Ground'],['A2','TX1+','SuperSpeed TX pair 1'],['A3','TX1−','SuperSpeed TX pair 1'],['A4','VBUS','Bus power'],
+      ['A5','CC1','Configuration channel'],['A6','D+','USB 2.0 data'],['A7','D−','USB 2.0 data'],['A8','SBU1','Sideband use'],
+      ['A9','VBUS','Bus power'],['A10','RX2−','SuperSpeed RX pair 2'],['A11','RX2+','SuperSpeed RX pair 2'],['A12','GND','Ground'],
+      ['B1','GND','Ground'],['B2','TX2+','SuperSpeed TX pair 2'],['B3','TX2−','SuperSpeed TX pair 2'],['B4','VBUS','Bus power'],
+      ['B5','CC2','Configuration channel / VCONN'],['B6','D+','USB 2.0 data'],['B7','D−','USB 2.0 data'],['B8','SBU2','Sideband use'],
+      ['B9','VBUS','Bus power'],['B10','RX1−','SuperSpeed RX pair 1'],['B11','RX1+','SuperSpeed RX pair 1'],['B12','GND','Ground']] }],
+    notes:'<p>Row A and row B are rotationally symmetric so the plug works in either orientation. USB 2.0-only devices tie both D+/D− pins together and add a 5.1&nbsp;k&Omega; pull-down (R<sub>d</sub>) on each of CC1 and CC2 to GND.</p><p>Only one CC pin is active in a mated cable; the other may supply VCONN to power the cable e-marker.</p>' },
+  { id:'hdmi', label:'HDMI',
+    tables:[{ title:'HDMI Type A (19 pins)', cols:['Pin','Signal'], rows:[
+      ['1','TMDS Data2+'],['2','TMDS Data2 Shield'],['3','TMDS Data2−'],['4','TMDS Data1+'],['5','TMDS Data1 Shield'],['6','TMDS Data1−'],
+      ['7','TMDS Data0+'],['8','TMDS Data0 Shield'],['9','TMDS Data0−'],['10','TMDS Clock+'],['11','TMDS Clock Shield'],['12','TMDS Clock−'],
+      ['13','CEC'],['14','Reserved (HEC utility)'],['15','SCL (DDC)'],['16','SDA (DDC)'],['17','DDC / CEC Ground'],['18','+5 V Power'],['19','Hot Plug Detect']] }],
+    notes:'<p>TMDS pairs are 100&nbsp;&Omega; differential. DDC (SCL/SDA) carries EDID and needs pull-ups on the source side. +5&nbsp;V on pin 18 is supplied by the source (typically up to 50&nbsp;mA).</p>' },
+  { id:'rj45', label:'RJ45',
+    tables:[{ title:'RJ45 (8P8C) Ethernet', cols:['Pin','T568B color','T568A color','10/100BASE-T','1000BASE-T'], rows:[
+      ['1','White/Orange','White/Green','TX+','BI_DA+'],['2','Orange','Green','TX−','BI_DA−'],
+      ['3','White/Green','White/Orange','RX+','BI_DB+'],['4','Blue','Blue','—','BI_DC+'],
+      ['5','White/Blue','White/Blue','—','BI_DC−'],['6','Green','Orange','RX−','BI_DB−'],
+      ['7','White/Brown','White/Brown','—','BI_DD+'],['8','Brown','Brown','—','BI_DD−']] }],
+    notes:'<p>Pins are numbered 1&ndash;8 left to right looking into the jack with the latch tab down. Pairs: 1-2, 3-6, 4-5, 7-8. Use the same standard (T568A or B) at both cable ends for a straight-through cable.</p>' },
+  { id:'jtag', label:'JTAG / SWD',
+    tables:[
+      { title:'ARM Cortex Debug (10-pin, 1.27 mm)', cols:['Pin','Signal'], rows:[
+        ['1','VTref'],['2','SWDIO / TMS'],['3','GND'],['4','SWCLK / TCK'],['5','GND'],['6','SWO / TDO'],['7','KEY (no pin)'],['8','NC / TDI'],['9','GND detect'],['10','nRESET']] },
+      { title:'ARM JTAG (20-pin, 2.54 mm)', cols:['Pin','Signal'], rows:[
+        ['1','VTref'],['2','Vsupply (NC)'],['3','nTRST'],['4','GND'],['5','TDI'],['6','GND'],['7','TMS / SWDIO'],['8','GND'],['9','TCK / SWCLK'],['10','GND'],
+        ['11','RTCK'],['12','GND'],['13','TDO / SWO'],['14','GND'],['15','nRESET'],['16','GND'],['17','DBGRQ'],['18','GND'],['19','5V-Supply (optional)'],['20','GND']] },
+    ],
+    notes:'<p>SWD needs only SWDIO, SWCLK, GND and VTref (plus nRESET and optional SWO). VTref is an input to the debugger to set its I/O level &mdash; it does not power the target.</p><p>Pin 1 is marked on the connector; on 2-row headers, odd pins are on one row and even pins on the other.</p>' },
+  { id:'dp', label:'DisplayPort',
+    tables:[{ title:'DisplayPort Receptacle, Source Side (20 pins)', cols:['Pin','Signal','Function'], rows:[
+      ['1','ML_Lane 0 (p)','Main Link lane 0, positive'],['2','GND','Ground'],['3','ML_Lane 0 (n)','Main Link lane 0, negative'],
+      ['4','ML_Lane 1 (p)','Main Link lane 1, positive'],['5','GND','Ground'],['6','ML_Lane 1 (n)','Main Link lane 1, negative'],
+      ['7','ML_Lane 2 (p)','Main Link lane 2, positive'],['8','GND','Ground'],['9','ML_Lane 2 (n)','Main Link lane 2, negative'],
+      ['10','ML_Lane 3 (p)','Main Link lane 3, positive'],['11','GND','Ground'],['12','ML_Lane 3 (n)','Main Link lane 3, negative'],
+      ['13','CONFIG1','Tied to GND (direct or via pulldown)'],['14','CONFIG2','Tied to GND (direct or via pulldown)'],
+      ['15','AUX CH (p)','Auxiliary channel, positive'],['16','GND','Ground'],['17','AUX CH (n)','Auxiliary channel, negative'],
+      ['18','Hot Plug','Hot Plug Detect'],['19','Return','Return for pin 20 power'],['20','DP_PWR','Connector power, 3.3V @ 500mA max']] }],
+    notes:'<p>Four Main Link lanes carry video/audio as AC-coupled 100&nbsp;&Omega; differential pairs; 1&ndash;4 lanes are used depending on required bandwidth. AUX CH is a bidirectional 1&nbsp;Mbps channel used for EDID/DPCD and link training.</p><p>This is the source-side (plug) pinout. On the sink side, lanes 0&ndash;3 are reversed in order (lane 3 on pins 1/3, lane 0 on pins 10/12) so a straight-through cable works.</p>' },
+  { id:'minidp', label:'Mini DisplayPort',
+    tables:[{ title:'Mini DisplayPort Receptacle, Source Side (20 pins)', cols:['Pin','Signal','Function'], rows:[
+      ['1','GND','Ground'],['2','HPD','Hot Plug Detect'],['3','ML_Lane 0 (p)','Main Link lane 0, positive'],
+      ['4','CONFIG1','Configuration'],['5','ML_Lane 0 (n)','Main Link lane 0, negative'],['6','CONFIG2','Configuration'],
+      ['7','GND','Ground'],['8','GND','Ground'],['9','ML_Lane 1 (p)','Main Link lane 1, positive'],
+      ['10','ML_Lane 3 (p)','Main Link lane 3, positive'],['11','ML_Lane 1 (n)','Main Link lane 1, negative'],
+      ['12','ML_Lane 3 (n)','Main Link lane 3, negative'],['13','GND','Ground'],['14','GND','Ground'],
+      ['15','ML_Lane 2 (p)','Main Link lane 2, positive'],['16','AUX CH (p)','Auxiliary channel, positive'],
+      ['17','ML_Lane 2 (n)','Main Link lane 2, negative'],['18','AUX CH (n)','Auxiliary channel, negative'],
+      ['19','GND','Ground'],['20','DP_PWR','Connector power']] }],
+    notes:'<p>Same electrical standard as full-size DisplayPort, just a smaller connector (originally introduced by Apple, later standardized by VESA) — passive adapters between the two are purely mechanical.</p><p>This is the source-side pinout; sink side has lanes 0&ndash;3 reversed (lane 3 on pins 3/5, lane 0 on pins 10/12), same convention as full-size DisplayPort.</p><p>Passive adapters can also drive VGA, DVI or HDMI displays via DisplayPort\'s dual-mode (DP++) output.</p>' },
+];
+CalculatorModules['pinouts'] = {
+  render(main){
+    buildTabbedCalculator(main, PINOUTS.map(p=>({id:p.id, label:p.label})), (id, body)=>{
+      const p = PINOUTS.find(x=>x.id===id);
+      const tables = p.tables.map(t=>`<h3>${t.title}</h3><div style="overflow-x:auto"><table class="pin-table">
+        <tr>${t.cols.map(c=>`<th>${c}</th>`).join('')}</tr>
+        ${t.rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`).join('');
+      body.innerHTML = `<div class="calc-columns"><div class="panel">${tables}</div><div class="panel side-panel"><h4>Notes</h4>${p.notes}</div></div>`;
+    }, {persistKey:'pinouts'});
+  },
+  save(){}
+};
+
+/* ---------- Stackup ---------- */
+const SK_COLORS = { mask:'#2e8b57', copper:'#d9812c', core:'#7a6a3f', prepreg:'#b3a374' };
+const STACKUPS = [
+  { id:'fr4-2', name:'2-Layer FR4', layers:2, substrate:'FR4', price:'cheap',
+    stack:[
+      {type:'copper', label:'1oz Cu', t:0.035},
+      {type:'core', label:'FR4 Core · 1.6mm', t:1.6},
+      {type:'copper', label:'1oz Cu', t:0.035},
+    ]},
+  { id:'fr4-4', name:'4-Layer FR4', layers:4, substrate:'FR4', price:'cheap',
+    stack:[
+      {type:'copper', label:'0.5oz Cu', t:0.0175},
+      {type:'prepreg', label:'FR4 Prepreg · 0.21mm', t:0.21},
+      {type:'copper', label:'1oz Cu', t:0.035},
+      {type:'core', label:'FR4 Core · 1.1mm', t:1.1},
+      {type:'copper', label:'1oz Cu', t:0.035},
+      {type:'prepreg', label:'FR4 Prepreg · 0.21mm', t:0.21},
+      {type:'copper', label:'0.5oz Cu', t:0.0175},
+    ]},
+  { id:'ro4003-8', name:'2-Layer RO4003 (8 mil)', layers:2, substrate:'Rogers', price:'expensive',
+    stack:[
+      {type:'copper', label:'1oz Cu', t:0.035},
+      {type:'core', label:'RO4003 Core · 8 mil', t:0.2032},
+      {type:'copper', label:'1oz Cu', t:0.035},
+    ]},
+  { id:'ro4003-32', name:'2-Layer RO4003 (32 mil)', layers:2, substrate:'Rogers', price:'expensive',
+    stack:[
+      {type:'copper', label:'1oz Cu', t:0.035},
+      {type:'core', label:'RO4003 Core · 32 mil', t:0.8128},
+      {type:'copper', label:'1oz Cu', t:0.035},
+    ]},
+  { id:'hybrid-8', name:'8-Layer Hybrid', layers:8, substrate:'Hybrid', price:'expensive',
+    stack:[
+      {type:'copper', label:'1oz Cu (Top)', t:0.035},
+      {type:'core', label:'RO4003C 3.3 Core · 8 mil', t:0.2032},
+      {type:'copper', label:'1oz Cu (GND Plane)', t:0.035},
+      {type:'prepreg', label:'FR4 Prepreg · 4 mil', t:0.1016},
+      {type:'copper', label:'0.5oz Cu (Signal)', t:0.0175},
+      {type:'prepreg', label:'FR4 Prepreg · 4 mil', t:0.1016},
+      {type:'copper', label:'1oz Cu (GND/PWR Plane)', t:0.035},
+      {type:'core', label:'FR4 Core · 19.685 mil', t:0.5},
+      {type:'copper', label:'1oz Cu (GND/PWR Plane)', t:0.035},
+      {type:'prepreg', label:'FR4 Prepreg · 4 mil', t:0.1016},
+      {type:'copper', label:'0.5oz Cu (Signal)', t:0.0175},
+      {type:'prepreg', label:'FR4 Prepreg · 4 mil', t:0.1016},
+      {type:'copper', label:'1oz Cu (GND Plane)', t:0.035},
+      {type:'core', label:'RO4003C 3.3 Core · 8 mil', t:0.2032},
+      {type:'copper', label:'1oz Cu (Bottom)', t:0.035},
+    ],
+    imp: { cpwg50: { w:'13 mil', clearance:'7 mil' } } },
+];
+const SK_LAYER_COUNTS = [2,4,6,8,10,12,14,16,18,20,22];
+const SK_SUBSTRATES = ['FR4','Rogers','Hybrid','Megtron'];
+const SK_PRICES = [{v:'cheap',l:'Cheap'},{v:'expensive',l:'Expensive'}];
+let customStackups = Store.load('custom-stackups') || [];
+function saveCustomStackups(){ Store.save('custom-stackups', customStackups); }
+function allStackups(){ return STACKUPS.concat(customStackups); }
+function substrateOptions(){ return Array.from(new Set(SK_SUBSTRATES.concat(customStackups.map(c=>c.substrate)))); }
+function skMatches(s, f){
+  return (f.layers.size===0 || f.layers.has(s.layers))
+      && (f.substrate.size===0 || f.substrate.has(s.substrate))
+      && (f.price.size===0 || f.price.has(s.price));
+}
+function skCount(dim, val, f){
+  const other = Object.assign({}, f, {[dim]: new Set()}); // count ignores this dim's own selection
+  return allStackups().filter(s => skMatches(s, other) && s[dim]===val).length;
+}
+function skDiagram(stack){
+  const full = [{type:'mask', label:'Solder Mask'}, ...stack, {type:'mask', label:'Solder Mask'}];
+  const rows = full.map(l=>{
+    const t = l.t || 0.015;
+    const h = Math.min(70, Math.round(9 + t*38));
+    return `<div class="sk-layer" style="height:${h}px;background:${SK_COLORS[l.type]}">
+      <span>${l.label}</span>${l.t?`<span>${l.t.toFixed(3)} mm</span>`:''}</div>`;
+  }).join('');
+  return `<div class="sk-diagram">${rows}</div>`;
+}
+function skCard(s){
+  const totalMm = s.stack.reduce((a,l)=>a+l.t,0);
+  return `<div class="sk-card" data-sk-id="${s.id}">
+    <div class="sk-card-head">
+      <strong>${s.name}${s.custom?' <span style="color:var(--accent);font-weight:600;font-size:11px">· Custom</span>':''}</strong>
+      <span class="sk-meta">${s.layers}L &middot; ${s.substrate} &middot; ${s.price==='cheap'?'Cheap':'Expensive'} &middot; ${totalMm.toFixed(2)}mm core+prepreg</span>
+    </div>
+    ${skDiagram(s.stack)}
+  </div>`;
+}
+const SK_IMPEDANCE_TARGETS = [
+  {id:'se50', label:'50Ω Single-Ended'}, {id:'cpwg50', label:'50Ω Grounded Coplanar (CPWG)'},
+  {id:'diff100', label:'100Ω Differential'}, {id:'diff90', label:'90Ω Differential'},
+  {id:'diffcpwg100', label:'100Ω Differential Coplanar'}, {id:'diffcpwg90', label:'90Ω Differential Coplanar'},
+];
+function openStackupInfo(s){
+  const totalMm = s.stack.reduce((a,l)=>a+l.t,0);
+  document.getElementById('sk-modal-title').textContent = s.name;
+  const rows = SK_IMPEDANCE_TARGETS.map(t=>{
+    const v = s.imp && s.imp[t.id];
+    return v
+      ? `<tr><td>${t.label}</td><td>${v.w}</td><td>${v.clearance}</td></tr>`
+      : `<tr><td>${t.label}</td><td class="na">N/A</td><td class="na">N/A</td></tr>`;
+  }).join('');
+  document.getElementById('sk-modal-body').innerHTML = `
+    <div class="panel">
+      <h3>${s.name}</h3>
+      <p class="sk-meta" style="margin-bottom:10px">${s.layers}L &middot; ${s.substrate} &middot; ${s.price==='cheap'?'Cheap':'Expensive'} &middot; ${totalMm.toFixed(2)}mm core+prepreg</p>
+      ${skDiagram(s.stack)}
+    </div>
+    <div class="panel side-panel">
+      <h4>Recommended Width / Clearance</h4>
+      <div style="overflow-x:auto"><table class="sk-imp-table">
+        <tr><th>Target</th><th>Width</th><th>Clearance</th></tr>
+        ${rows}
+      </table></div>
+      <p style="font-size:11.5px;color:var(--text-dim);margin-top:10px">Values shown are given/known for this stackup where available. Rows marked N/A aren't calculated yet — coming in a future update.</p>
+      ${s.custom ? `<div style="display:flex;gap:8px;margin-top:14px">
+        <button id="sk-view-edit" class="sk-btn sk-btn-plain">Edit</button>
+        <button id="sk-view-delete" class="sk-btn sk-btn-danger">Delete</button>
+      </div>` : ''}
+    </div>`;
+  document.getElementById('stackup-info-overlay').classList.remove('hidden');
+  if(s.custom){
+    document.getElementById('sk-view-edit').addEventListener('click', ()=>{ closeStackupInfo(); openStackupEditor(s); });
+    document.getElementById('sk-view-delete').addEventListener('click', ()=>{
+      if(confirm('Delete "'+s.name+'"? This can\'t be undone.')){
+        customStackups = customStackups.filter(c=>c.id!==s.id);
+        saveCustomStackups();
+        closeStackupInfo();
+        refreshStackupBuilder();
+      }
+    });
+  }
+}
+function skFacetGroup(title, dim, values, labelFn, f){
+  const opts = values.map(v=>{
+    const count = skCount(dim, v, f);
+    const checked = f[dim].has(v);
+    const disabled = count===0 && !checked;
+    return `<label class="sk-filter-opt ${disabled?'disabled':''}">
+      <input type="checkbox" data-dim="${dim}" data-val="${v}" ${checked?'checked':''} ${disabled?'disabled':''}>
+      <span>${labelFn(v)}</span><span class="sk-count">${count}</span>
+    </label>`;
+  }).join('');
+  return `<div class="sk-filter-group"><h4>${title}</h4>${opts}</div>`;
+}
+let _skBuilderRerender = null;
+function refreshStackupBuilder(){
+  try{ if(_skBuilderRerender) _skBuilderRerender(); }catch(e){ _skBuilderRerender = null; }
+}
+function renderStackupBuilder(body){
+  const f = { layers:new Set(), substrate:new Set(), price:new Set() };
+  function render(){
+    const results = allStackups().filter(s=>skMatches(s,f));
+    const anyActive = f.layers.size || f.substrate.size || f.price.size;
+    body.innerHTML = `<div class="sk-filter-layout">
+      <div class="sk-filter-panel">
+        <button class="sk-btn sk-btn-primary" id="sk-new" style="width:100%;margin-bottom:14px">+ New Stackup</button>
+        <div class="sk-legend" style="margin-bottom:14px">
+          <span><i style="background:${SK_COLORS.mask}"></i>Mask</span>
+          <span><i style="background:${SK_COLORS.copper}"></i>Copper</span>
+          <span><i style="background:${SK_COLORS.core}"></i>Core</span>
+          <span><i style="background:${SK_COLORS.prepreg}"></i>Prepreg</span>
+        </div>
+        ${skFacetGroup('Layer Count', 'layers', SK_LAYER_COUNTS, v=>v+' layers', f)}
+        ${skFacetGroup('Substrate', 'substrate', substrateOptions(), v=>v, f)}
+        ${skFacetGroup('Price', 'price', SK_PRICES.map(p=>p.v), v=>SK_PRICES.find(p=>p.v===v).l, f)}
+        ${anyActive ? '<button class="add-row-btn" id="sk-clear">Clear filters</button>' : ''}
+        <p style="font-size:11.5px;color:var(--text-dim);margin-top:12px">Checking multiple values in one group broadens that group (OR). Groups combine (AND). Grayed options would return zero results.</p>
+      </div>
+      <div class="sk-results-panel">
+        ${results.length ? results.map(skCard).join('') : '<p class="placeholder" style="padding:30px 0">No stackups match these filters.</p>'}
+      </div>
+    </div>`;
+    body.querySelector('#sk-new').addEventListener('click', ()=> openStackupEditor(null));
+    body.querySelectorAll('[data-dim]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const dim = cb.dataset.dim, raw = cb.dataset.val;
+        const val = dim==='layers' ? +raw : raw;
+        if(cb.checked) f[dim].add(val); else f[dim].delete(val);
+        render();
+      });
+    });
+    body.querySelectorAll('.sk-card').forEach(card=>{
+      card.addEventListener('click', ()=> openStackupInfo(allStackups().find(s=>s.id===card.dataset.skId)));
+    });
+    const clearBtn = body.querySelector('#sk-clear');
+    if(clearBtn) clearBtn.addEventListener('click', ()=>{ f.layers.clear(); f.substrate.clear(); f.price.clear(); render(); });
+  }
+  _skBuilderRerender = render;
+  render();
+  return {};
+}
+
+/* ---------- Stackup Editor (create/edit custom stackups) ---------- */
+const SK_CU_WEIGHTS = [0.5,1,2,3];
+const SK_CU_WEIGHT_MM = {0.5:0.0175, 1:0.035, 2:0.07, 3:0.105};
+function skNewLayer(type){
+  if(type==='copper') return { type:'copper', role:'signal', weightOz:1, custom:false, tValue:35, tUnit:'µm', material:'' };
+  return { type, role:null, weightOz:null, custom:true, tValue: type==='core'?1.6:0.2, tUnit:'mm', material:'FR4' };
+}
+function skLayerMm(l){
+  if(l.type==='copper' && !l.custom) return SK_CU_WEIGHT_MM[l.weightOz];
+  return toBase(l.tValue, l.tUnit, 'length');
+}
+function skLayerLabel(l){
+  if(l.type==='copper'){
+    const w = l.custom ? fmt(l.tValue)+l.tUnit : l.weightOz+'oz';
+    return `${w} Cu${l.role? ' ('+(l.role==='signal'?'Signal':'Plane')+')' : ''}`;
+  }
+  const mat = l.material ? l.material+' ' : '';
+  return `${mat}${l.type==='core'?'Core':'Prepreg'} \u00b7 ${fmt(l.tValue)}${l.tUnit}`;
+}
+let skbDraft = null;
+function openStackupEditor(existing){
+  skbDraft = existing
+    ? { id:existing.id, name:existing.name, substrate:existing.substrate, price:existing.price,
+        layers: existing.stack.map(l=> l._raw ? Object.assign({}, l._raw) : Object.assign(skNewLayer(l.type), {tValue:l.t, tUnit:'mm', custom:true})),
+        imp: existing.imp ? JSON.parse(JSON.stringify(existing.imp)) : {} }
+    : { id:null, name:'My Stackup', substrate:'FR4', price:'cheap',
+        layers:[ skNewLayer('copper'), skNewLayer('core'), skNewLayer('copper') ], imp:{} };
+  renderStackupEditor();
+  document.getElementById('stackup-editor-overlay').classList.remove('hidden');
+}
+function closeStackupEditor(){ document.getElementById('stackup-editor-overlay').classList.add('hidden'); }
+function renderStackupEditor(){
+  const body = document.getElementById('skb-body');
+  document.getElementById('skb-title').textContent = skbDraft.id ? 'Edit Stackup' : 'New Stackup';
+  const lenUnitOpts = sel => Object.keys(UNIT_DEFS.length.units).map(u=>`<option ${u===sel?'selected':''}>${u}</option>`).join('');
+  const layerRows = skbDraft.layers.map((l,i)=>{
+    const typeOpts = ['copper','core','prepreg'].map(t=>`<option value="${t}" ${t===l.type?'selected':''}>${t==='copper'?'Copper':t==='core'?'Core':'Prepreg'}</option>`).join('');
+    let sub = '';
+    if(l.type==='copper'){
+      const roleOpts = ['signal','plane'].map(r=>`<option value="${r}" ${r===l.role?'selected':''}>${r==='signal'?'Signal':'Plane'}</option>`).join('');
+      const weightOpts = SK_CU_WEIGHTS.map(w=>`<option value="${w}" ${!l.custom && w===l.weightOz?'selected':''}>${w}oz</option>`).join('') + `<option value="custom" ${l.custom?'selected':''}>Custom</option>`;
+      sub = `<select class="field-input" data-li="${i}" data-f="role" style="max-width:90px">${roleOpts}</select>
+        <select class="field-input" data-li="${i}" data-f="weight" style="max-width:90px">${weightOpts}</select>
+        ${l.custom ? `<input class="field-input" data-li="${i}" data-f="tValue" type="number" step="any" value="${l.tValue}" style="max-width:70px">
+          <select class="field-unit" data-li="${i}" data-f="tUnit">${lenUnitOpts(l.tUnit)}</select>` : ''}`;
+    } else {
+      sub = `<input class="field-input" data-li="${i}" data-f="material" type="text" placeholder="Material" value="${l.material||''}" style="max-width:110px">
+        <input class="field-input" data-li="${i}" data-f="tValue" type="number" step="any" value="${l.tValue}" style="max-width:70px">
+        <select class="field-unit" data-li="${i}" data-f="tUnit">${lenUnitOpts(l.tUnit)}</select>`;
+    }
+    return `<div class="sk-layer-row">
+      <span class="sk-layer-num">${i+1}</span>
+      <select class="field-input" data-li="${i}" data-f="type" style="max-width:100px">${typeOpts}</select>
+      ${sub}
+      <button class="icon-btn" data-act="up" data-li="${i}" title="Move up" ${i===0?'disabled':''}>&uarr;</button>
+      <button class="icon-btn" data-act="down" data-li="${i}" title="Move down" ${i===skbDraft.layers.length-1?'disabled':''}>&darr;</button>
+      <button class="field-remove" data-act="remove" data-li="${i}" title="Remove">&times;</button>
+    </div>`;
+  }).join('');
+  const cuCount = skbDraft.layers.filter(l=>l.type==='copper').length;
+  const impRows = SK_IMPEDANCE_TARGETS.map(t=>{
+    const v = skbDraft.imp[t.id] || {};
+    return `<div class="field-row">
+      <div class="field-label" style="width:190px">${t.label}</div>
+      <input class="field-input" data-imp="${t.id}" data-f="w" type="text" placeholder="Width (e.g. 13 mil)" value="${v.w||''}">
+      <input class="field-input" data-imp="${t.id}" data-f="clearance" type="text" placeholder="Clearance (e.g. 7 mil)" value="${v.clearance||''}">
+    </div>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="field-row"><div class="field-label">Name</div><input class="field-input" id="skb-name" type="text" value="${skbDraft.name}"></div>
+    <div class="field-row"><div class="field-label">Substrate</div>
+      <input class="field-input" id="skb-substrate" type="text" list="skb-substrate-list" value="${skbDraft.substrate}">
+      <datalist id="skb-substrate-list">${substrateOptions().map(s=>`<option value="${s}">`).join('')}</datalist>
+    </div>
+    <div class="field-row"><div class="field-label">Price Tier</div>
+      <select class="field-input" id="skb-price">
+        <option value="cheap" ${skbDraft.price==='cheap'?'selected':''}>Cheap</option>
+        <option value="expensive" ${skbDraft.price==='expensive'?'selected':''}>Expensive</option>
+      </select>
+    </div>
+    <hr class="sep">
+    <h4 style="margin:0 0 8px">Layers, top to bottom &middot; ${cuCount} copper layer${cuCount===1?'':'s'}${cuCount%2?' <span style="color:var(--danger)">(should be even)</span>':''}</h4>
+    <div id="skb-layers">${layerRows}</div>
+    <button class="add-row-btn" id="skb-add-layer">+ Add Layer</button>
+    <hr class="sep">
+    <h4 style="margin:0 0 8px">Recommended Width / Clearance (optional)</h4>
+    ${impRows}
+    <hr class="sep">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      ${skbDraft.id ? '<button class="sk-btn sk-btn-danger" id="skb-delete" style="margin-right:auto">Delete</button>' : ''}
+      <button class="sk-btn sk-btn-plain" id="skb-cancel">Cancel</button>
+      <button class="sk-btn sk-btn-primary" id="skb-save">Save Stackup</button>
+    </div>`;
+  body.querySelectorAll('[data-li]').forEach(el=>{
+    const i = +el.dataset.li, fld = el.dataset.f;
+    const evt = el.tagName==='SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, ()=>{
+      const l = skbDraft.layers[i];
+      if(fld==='type'){ skbDraft.layers[i] = skNewLayer(el.value); renderStackupEditor(); return; }
+      if(fld==='role') l.role = el.value;
+      else if(fld==='weight'){
+        if(el.value==='custom') l.custom = true; else { l.custom = false; l.weightOz = +el.value; }
+        renderStackupEditor(); return;
+      }
+      else if(fld==='material') l.material = el.value;
+      else if(fld==='tValue') l.tValue = parseFloat(el.value)||0;
+      else if(fld==='tUnit') l.tUnit = el.value;
+    });
+  });
+  body.querySelectorAll('[data-act]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = +btn.dataset.li, act = btn.dataset.act;
+      if(act==='remove') skbDraft.layers.splice(i,1);
+      else if(act==='up' && i>0){ const x=skbDraft.layers.splice(i,1)[0]; skbDraft.layers.splice(i-1,0,x); }
+      else if(act==='down' && i<skbDraft.layers.length-1){ const x=skbDraft.layers.splice(i,1)[0]; skbDraft.layers.splice(i+1,0,x); }
+      renderStackupEditor();
+    });
+  });
+  body.querySelector('#skb-add-layer').addEventListener('click', ()=>{ skbDraft.layers.push(skNewLayer('copper')); renderStackupEditor(); });
+  body.querySelector('#skb-name').addEventListener('input', e=> skbDraft.name = e.target.value);
+  body.querySelector('#skb-substrate').addEventListener('input', e=> skbDraft.substrate = e.target.value);
+  body.querySelector('#skb-price').addEventListener('change', e=> skbDraft.price = e.target.value);
+  body.querySelectorAll('[data-imp]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const id = el.dataset.imp, fld = el.dataset.f;
+      if(!skbDraft.imp[id]) skbDraft.imp[id] = {};
+      skbDraft.imp[id][fld] = el.value;
+      if(!skbDraft.imp[id].w && !skbDraft.imp[id].clearance) delete skbDraft.imp[id];
+    });
+  });
+  body.querySelector('#skb-cancel').addEventListener('click', closeStackupEditor);
+  if(skbDraft.id){
+    body.querySelector('#skb-delete').addEventListener('click', ()=>{
+      if(confirm('Delete "'+skbDraft.name+'"? This can\'t be undone.')){
+        customStackups = customStackups.filter(c=>c.id!==skbDraft.id);
+        saveCustomStackups();
+        closeStackupEditor();
+        refreshStackupBuilder();
+      }
+    });
+  }
+  body.querySelector('#skb-save').addEventListener('click', ()=>{
+    if(!skbDraft.name.trim()){ alert('Please name this stackup.'); return; }
+    if(skbDraft.layers.length<2 || skbDraft.layers[0].type!=='copper' || skbDraft.layers[skbDraft.layers.length-1].type!=='copper'){
+      alert('A stackup should start and end with a copper layer.'); return;
+    }
+    const stack = skbDraft.layers.map(l=>({ type:l.type, label:skLayerLabel(l), t:skLayerMm(l), _raw:Object.assign({},l) }));
+    const layerCount = skbDraft.layers.filter(l=>l.type==='copper').length;
+    const obj = { id: skbDraft.id || ('custom-'+Date.now()), name:skbDraft.name.trim(), layers:layerCount,
+      substrate: skbDraft.substrate.trim()||'Custom', price:skbDraft.price, stack, imp:skbDraft.imp, custom:true };
+    if(skbDraft.id){ const idx = customStackups.findIndex(c=>c.id===skbDraft.id); customStackups[idx] = obj; }
+    else customStackups.push(obj);
+    saveCustomStackups();
+    closeStackupEditor();
+    refreshStackupBuilder();
+  });
+}
+
+const DIELECTRICS = [
+  { name:'FR4', mfr:'Generic (IPC-4101)', er:'3.9 – 4.7 (≈4.4 @1MHz)', df:'0.017 – 0.02 @1MHz',
+    tcdk:'Not commonly specified', density:'≈1.85 g/cm³', cte:'X/Y 14–17 · Z 50–70 (&lt;Tg), 200–300 (&gt;Tg)',
+    moisture:'0.10 – 0.20%', stress:'≈350–450 MPa (flexural)', strain:'Not typically specified',
+    tg:'130 – 180°C (std.); up to 200°C+ (high-Tg)', td:'≈310 – 340°C' },
+  { name:'Megtron 6', mfr:'Panasonic (R-5775 / R-5670)', er:'3.4 – 3.6 @10GHz (3.71 @1GHz)', df:'0.002 @1–2GHz · 0.004 @10–13GHz',
+    tcdk:'Not published', density:'Not published', cte:'X/Y 14–16 (&lt;Tg) · Z 45 (&lt;Tg) / 260 (&gt;Tg)',
+    moisture:'0.14%', stress:'Not published', strain:'Not published',
+    tg:'185°C (DSC) / 210°C (DMA)', td:'410°C' },
+  { name:'RO4003C', mfr:'Rogers Corporation', er:'3.38 ± 0.05 @10GHz (3.55 design)', df:'0.0027 @10GHz',
+    tcdk:'+40 ppm/°C', density:'1.79 g/cm³', cte:'X 11 · Y 14 · Z 46',
+    moisture:'0.06%', stress:'141 MPa (Y, ASTM D638)', strain:'≈0.5%* (derived: stress/modulus)',
+    tg:'&gt;280°C', td:'425°C' },
+  { name:'RT/duroid 5880', mfr:'Rogers Corporation', er:'2.20 ± 0.02 @10GHz (design 2.20)', df:'0.0009 @10GHz',
+    tcdk:'−125 ppm/°C', density:'2.20 g/cm³', cte:'X 31 · Y 48 · Z 237 (0–100°C)',
+    moisture:'0.02%', stress:'42 MPa (Y, 23°C, ASTM D638)', strain:'9.8% (Y, 23°C)',
+    tg:'N/A (PTFE, no sharp Tg)', td:'500°C' },
+];
+function dielectricTable(chosen){
+  if(!chosen.length) return '<p class="placeholder" style="padding:40px 0">Select one or more materials to see their table.</p>';
+  const rows = [
+    ['grp','Electrical'],
+    ['key','Dielectric Constant (εr / Dk)','er'],
+    ['key','Dissipation Factor (tanδ / Df)','df'],
+    ['','Thermal Coefficient of εr (TCDk)','tcdk'],
+    ['grp','Thermal'],
+    ['','Glass Transition Temp (Tg)','tg'],
+    ['','Decomposition Temp (Td)','td'],
+    ['','CTE, X/Y/Z (ppm/°C)','cte'],
+    ['grp','Mechanical & Physical'],
+    ['','Density','density'],
+    ['','Moisture Absorption','moisture'],
+    ['','Ultimate Stress (tensile unless noted)','stress'],
+    ['','Ultimate Strain (elongation)','strain'],
+    ['grp','Source'],
+    ['','Manufacturer','mfr'],
+  ];
+  const rowsHTML = rows.map(([cls,label,key])=>{
+    if(cls==='grp') return `<tr class="grp"><td colspan="${chosen.length+1}">${label}</td></tr>`;
+    return `<tr class="${cls}"><td>${label}</td>${chosen.map(d=>`<td>${d[key]}</td>`).join('')}</tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto"><table class="spec-table">
+      <tr><th>Parameter</th>${chosen.map(d=>`<th>${d.name}</th>`).join('')}</tr>
+      ${rowsHTML}
+    </table></div>
+    <p style="font-size:11.5px;color:var(--text-dim);margin-top:12px">Values are manufacturer-typical, not guaranteed min/max — confirm against the current datasheet before finalizing a stackup. RO4003C strain is derived (stress÷modulus), not a measured elongation. RT/duroid 5880 is PTFE-based with no conventional Tg.</p>`;
+}
+function renderDielectric(body){
+  const selected = new Set();
+  function render(){
+    const chosen = DIELECTRICS.filter(d=>selected.has(d.name));
+    body.innerHTML = `<div class="sk-filter-layout">
+      <div class="sk-filter-panel">
+        <div class="sk-filter-group"><h4>Materials</h4>
+          ${DIELECTRICS.map(d=>`<label class="sk-filter-opt">
+            <input type="checkbox" data-mat="${d.name}" ${selected.has(d.name)?'checked':''}><span>${d.name}</span>
+          </label>`).join('')}
+        </div>
+      </div>
+      <div class="sk-results-panel"><div class="panel">
+        <h3>High-Speed PCB Dielectric Materials</h3>
+        ${dielectricTable(chosen)}
+      </div></div>
+    </div>`;
+    body.querySelectorAll('[data-mat]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        if(cb.checked) selected.add(cb.dataset.mat); else selected.delete(cb.dataset.mat);
+        render();
+      });
+    });
+  }
+  render();
+  return {};
+}
+CalculatorModules['stackup'] = {
+  render(main){
+    this._calc = buildTabbedCalculator(main, [
+      {id:'builder', label:'Stackup Builder'},
+      {id:'dielectric', label:'Dielectric'},
+    ], (id, body)=> id==='builder' ? renderStackupBuilder(body) : renderDielectric(body), {persistKey:'stackup'});
+  },
+  save(){ if(this._calc) this._calc.save(); }
+};
+
+/* =========================================================
+   SECTION: SEARCH
+========================================================= */
+// Every searchable tab/sub-tab. tabPath is a list of [TabMemory persistKey, tabId] pairs
+// preset right before navigating, so the calculator opens directly on that tab.
+const SEARCH_INDEX = [
+  {calc:'ohms-law', tabPath:[['ohms-law','current']], label:'Current (I = V/R)', kw:['current','i=v/r']},
+  {calc:'ohms-law', tabPath:[['ohms-law','vdrop']], label:'Voltage Drop', kw:['voltage drop']},
+  {calc:'ohms-law', tabPath:[['ohms-law','diode']], label:'LED / Diode Bias', kw:['led','diode','bias','forward current','series resistor for led']},
+  {calc:'ohms-law', tabPath:[['ohms-law','seriesR']], label:'Series R', kw:['series resistor','series resistance']},
+  {calc:'ohms-law', tabPath:[['ohms-law','parallelR']], label:'Parallel R', kw:['parallel resistor','parallel resistance']},
+  {calc:'ohms-law', tabPath:[['ohms-law','seriesC']], label:'Series C', kw:['series capacitor','series capacitance']},
+  {calc:'ohms-law', tabPath:[['ohms-law','parallelC']], label:'Parallel C', kw:['parallel capacitor','parallel capacitance']},
+  {calc:'ohms-law', tabPath:[['ohms-law','seriesL']], label:'Series L', kw:['series inductor','series inductance']},
+  {calc:'ohms-law', tabPath:[['ohms-law','parallelL']], label:'Parallel L', kw:['parallel inductor','parallel inductance']},
+  {calc:'via', tabPath:[['via','resistance']], label:'Resistance & Power', kw:['via resistance','barrel resistance']},
+  {calc:'via', tabPath:[['via','current']], label:'Current Capacity', kw:['via current']},
+  {calc:'via', tabPath:[['via','inductance']], label:'Inductance', kw:['via inductance']},
+  {calc:'via', tabPath:[['via','capacitance']], label:'Capacitance', kw:['via capacitance','pad antipad']},
+  {calc:'trace-width', tabPath:[['trace-width','current']], label:'Current from Width', kw:['trace current','track current','max current','voltage drop']},
+  {calc:'trace-width', tabPath:[['trace-width','width']], label:'Width from Current', kw:['trace width','track width','required width']},
+  {calc:'trace-width', tabPath:[['trace-width','temprise']], label:'Temp Rise', kw:['temperature rise']},
+  {calc:'transmission-line', tabPath:[['tl-outer','single'],['tl-inner-single','ms']], label:'Single-Ended → Microstrip', kw:['microstrip','impedance','single ended']},
+  {calc:'transmission-line', tabPath:[['tl-outer','single'],['tl-inner-single','sl']], label:'Single-Ended → Stripline', kw:['stripline']},
+  {calc:'transmission-line', tabPath:[['tl-outer','single'],['tl-inner-single','cpwg']], label:'Single-Ended → Coplanar (grounded)', kw:['coplanar','cpwg','grounded coplanar waveguide']},
+  {calc:'transmission-line', tabPath:[['tl-outer','diff'],['tl-inner-diff','ms']], label:'Differential → Edge-Coupled Microstrip', kw:['differential microstrip','diff pair']},
+  {calc:'transmission-line', tabPath:[['tl-outer','diff'],['tl-inner-diff','sl']], label:'Differential → Edge-Coupled Stripline', kw:['differential stripline']},
+  {calc:'transmission-line', tabPath:[['tl-outer','diff'],['tl-inner-diff','cpwg']], label:'Differential → Edge-Coupled Coplanar', kw:['differential coplanar']},
+  {calc:'bandwidth', tabPath:[['bandwidth','bw']], label:'Bandwidth', kw:['bandwidth','rise time','knee frequency']},
+  {calc:'bandwidth', tabPath:[['bandwidth','lt']], label:'Max Length (Rise Time)', kw:['max trace length','rise time length']},
+  {calc:'bandwidth', tabPath:[['bandwidth','lf']], label:'Max Length (Frequency)', kw:['max trace length frequency']},
+  {calc:'conversion', tabPath:[['conversion','len']], label:'Distance', kw:['mm to mil','unit conversion','distance']},
+  {calc:'conversion', tabPath:[['conversion','db']], label:'dB ↔ Gain', kw:['decibel','db to gain','voltage gain']},
+  {calc:'conversion', tabPath:[['conversion','polar']], label:'Rectangular ↔ Polar', kw:['polar','rectangular','complex number']},
+  {calc:'crystal', tabPath:[['crystal','loadcap']], label:'Load Capacitance', kw:['crystal load cap']},
+  {calc:'crystal', tabPath:[['crystal','ppm']], label:'PPM ↔ Frequency', kw:['ppm','frequency deviation','crystal tolerance']},
+  {calc:'rf', tabPath:[['rf','vswr']], label:'VSWR / Reflection / Power', kw:['vswr','reflection coefficient','return loss','mismatch loss']},
+  {calc:'e-series', tabPath:[['e-series','near']], label:'Nearest Value', kw:['nearest resistor value','e12','e24','e48','e96']},
+  {calc:'e-series', tabPath:[['e-series','combo']], label:'Best Two-Resistor Combo', kw:['two resistor combo','resistor combination','optimum','precise','lock']},
+  {calc:'pinouts', tabPath:[['pinouts','usbc']], label:'USB-C', kw:['usb-c','usb c','type-c']},
+  {calc:'pinouts', tabPath:[['pinouts','hdmi']], label:'HDMI', kw:['hdmi']},
+  {calc:'pinouts', tabPath:[['pinouts','rj45']], label:'RJ45', kw:['rj45','ethernet']},
+  {calc:'pinouts', tabPath:[['pinouts','jtag']], label:'JTAG / SWD', kw:['jtag','swd']},
+  {calc:'pinouts', tabPath:[['pinouts','dp']], label:'DisplayPort', kw:['displayport','dp']},
+  {calc:'pinouts', tabPath:[['pinouts','minidp']], label:'Mini DisplayPort', kw:['mini displayport','mini dp']},
+  {calc:'stackup', tabPath:[['stackup','builder']], label:'Stackup Builder', kw:['stackup','layer stack','custom stackup']},
+  {calc:'stackup', tabPath:[['stackup','dielectric']], label:'Dielectric', kw:['dielectric','dk','df','fr4','rogers','megtron','ro4003']},
+];
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function searchMatch(query){
+  const q = query.trim().toLowerCase();
+  if(!q) return [];
+  const results = [];
+  for(const c of CALCULATORS){
+    if(!c.ready) continue;
+    const hay = (c.title+' '+(c.sub||'')).toLowerCase();
+    if(hay.includes(q)) results.push({calc:c.id, tabPath:null, title:c.title, sub:null});
+  }
+  for(const e of SEARCH_INDEX){
+    const hay = (e.label+' '+e.kw.join(' ')).toLowerCase();
+    if(hay.includes(q)){
+      const meta = CALCULATORS.find(c=>c.id===e.calc);
+      results.push({calc:e.calc, tabPath:e.tabPath, title: meta?meta.title:e.calc, sub:e.label});
+    }
+  }
+  return results.slice(0,8);
+}
+function loadSearchHistory(){ return Store.load('search-history') || []; }
+function saveSearchHistory(arr){ Store.save('search-history', arr); }
+function addSearchHistory(q){
+  q = q.trim(); if(!q) return;
+  let hist = loadSearchHistory().filter(h=>h.toLowerCase()!==q.toLowerCase());
+  hist.unshift(q);
+  saveSearchHistory(hist.slice(0,10));
+}
+
+/* =========================================================
+   SECTION: INIT
+========================================================= */
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  document.getElementById('theme-switch').checked = (t === 'dark');
+}
+applyTheme(Store.load('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+document.getElementById('theme-switch').addEventListener('change', e=>{
+  const t = e.target.checked ? 'dark' : 'light';
+  applyTheme(t);
+  Store.save('theme', t);
+});
+const settingsOverlay = document.getElementById('settings-overlay');
+const autosaveSwitch = document.getElementById('autosave-switch');
+autosaveSwitch.checked = Settings.autosave;
+function closeSettings(){ settingsOverlay.classList.add('hidden'); }
+document.getElementById('settings-btn').addEventListener('click', ()=> settingsOverlay.classList.remove('hidden'));
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+settingsOverlay.addEventListener('click', e=>{ if(e.target===settingsOverlay) closeSettings(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeSettings(); closeStackupInfo(); closeStackupEditor(); } });
+const skInfoOverlay = document.getElementById('stackup-info-overlay');
+function closeStackupInfo(){ skInfoOverlay.classList.add('hidden'); }
+document.getElementById('sk-modal-close').addEventListener('click', closeStackupInfo);
+skInfoOverlay.addEventListener('click', e=>{ if(e.target===skInfoOverlay) closeStackupInfo(); });
+const skEditorOverlay = document.getElementById('stackup-editor-overlay');
+document.getElementById('skb-close').addEventListener('click', closeStackupEditor);
+skEditorOverlay.addEventListener('click', e=>{ if(e.target===skEditorOverlay) closeStackupEditor(); });
+autosaveSwitch.addEventListener('change', ()=>{
+  Settings.autosave = autosaveSwitch.checked;
+  Store.save('settings', Settings);
+  if(Settings.autosave && App.dirty) App.markDirty(true); // flush pending changes now
+});
+
+/* ---------- Backup & Restore ----------
+   Schema is versioned so future app versions can detect and migrate older
+   backups instead of silently misreading them. */
+const APP_STORAGE_PREFIX = 'pcbcalc:';
+const BACKUP_SCHEMA_VERSION = 1;
+function exportBackup(){
+  const data = {};
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k && k.indexOf(APP_STORAGE_PREFIX)===0) data[k] = localStorage.getItem(k);
+  }
+  const payload = { app:'pcb-calc', schema:BACKUP_SCHEMA_VERSION, exportedAt:new Date().toISOString(), data };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'pcb-calc-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function importBackupFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let payload;
+    try{ payload = JSON.parse(reader.result); }
+    catch(e){ alert('This file is not valid JSON.'); return; }
+    if(!payload || payload.app!=='pcb-calc' || typeof payload.data!=='object'){
+      alert('This doesn\'t look like a PCB Calc backup file.'); return;
+    }
+    if(typeof payload.schema==='number' && payload.schema>BACKUP_SCHEMA_VERSION){
+      if(!confirm('This backup was made by a newer version of PCB Calc. Attempt to restore it anyway?')) return;
+    }
+    if(!confirm('This replaces all calculator values, custom stackups, and settings currently saved on this device. Continue?')) return;
+    const toRemove = [];
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf(APP_STORAGE_PREFIX)===0) toRemove.push(k); }
+    toRemove.forEach(k=>localStorage.removeItem(k));
+    Object.keys(payload.data).forEach(k=>{ if(k.indexOf(APP_STORAGE_PREFIX)===0) localStorage.setItem(k, payload.data[k]); });
+    alert('Backup restored. Reloading now.');
+    location.reload();
+  };
+  reader.onerror = ()=> alert('Could not read that file.');
+  reader.readAsText(file);
+}
+document.getElementById('settings-export').addEventListener('click', exportBackup);
+document.getElementById('settings-import').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(file) importBackupFile(file);
+  e.target.value = '';
+});
+
+/* ---------- Search wiring ---------- */
+const searchInput = document.getElementById('search-input');
+const searchDropdown = document.getElementById('search-dropdown');
+function searchRowHTML(r){
+  return `<div class="search-row" data-goto data-calc="${r.calc}" data-tabpath='${escapeHtml(JSON.stringify(r.tabPath||[]))}'>
+    <span class="sr-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+    <div><div class="sr-main">${escapeHtml(r.title)}</div>${r.sub?`<div class="sr-sub">${escapeHtml(r.sub)}</div>`:''}</div>
+  </div>`;
+}
+function renderSearchDropdown(){
+  const q = searchInput.value;
+  if(q.trim()){
+    const results = searchMatch(q);
+    searchDropdown.innerHTML = results.length
+      ? results.map(searchRowHTML).join('')
+      : `<div class="search-empty">No matches for "${escapeHtml(q)}"</div>`;
+    searchDropdown.querySelectorAll('[data-goto]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        addSearchHistory(searchInput.value);
+        const tabPath = JSON.parse(row.dataset.tabpath || '[]');
+        tabPath.forEach(([k,v])=> TabMemory.save(k,v));
+        searchInput.value = '';
+        searchDropdown.classList.add('hidden');
+        searchInput.blur();
+        location.hash = row.dataset.calc;
+      });
+    });
+  } else {
+    const hist = loadSearchHistory();
+    if(!hist.length){
+      searchDropdown.innerHTML = '<div class="search-empty">Start typing to search calculators, tabs, even sub-tabs…</div>';
+    } else {
+      searchDropdown.innerHTML = `<div class="search-hist-head">Recent searches<button id="search-clear-hist">Clear all</button></div>` +
+        hist.map(h=>`<div class="search-row" data-hist="${escapeHtml(h)}">
+          <span class="sr-icon">&#8635;</span><span class="sr-main">${escapeHtml(h)}</span>
+          <button class="sr-del" data-del="${escapeHtml(h)}" title="Remove">&times;</button>
+        </div>`).join('');
+      searchDropdown.querySelector('#search-clear-hist').addEventListener('click', e=>{
+        e.stopPropagation(); clearSearchHistory(); renderSearchDropdown();
+      });
+      searchDropdown.querySelectorAll('[data-del]').forEach(btn=> btn.addEventListener('click', e=>{
+        e.stopPropagation(); removeSearchHistoryItem(btn.dataset.del); renderSearchDropdown();
+      }));
+      searchDropdown.querySelectorAll('[data-hist]').forEach(row=> row.addEventListener('click', ()=>{
+        searchInput.value = row.dataset.hist; renderSearchDropdown(); searchInput.focus();
+      }));
+    }
+  }
+  searchDropdown.classList.remove('hidden');
+}
+function clearSearchHistory(){ saveSearchHistory([]); }
+function removeSearchHistoryItem(q){ saveSearchHistory(loadSearchHistory().filter(h=>h!==q)); }
+searchInput.addEventListener('input', renderSearchDropdown);
+searchInput.addEventListener('focus', renderSearchDropdown);
+searchInput.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ searchDropdown.classList.add('hidden'); searchInput.blur(); }
+  if(e.key==='Enter'){ const first = searchDropdown.querySelector('[data-goto]'); if(first) first.click(); }
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.search-box')) searchDropdown.classList.add('hidden');
+});
+
+window.addEventListener('resize', ()=>{ if(!App.currentId) renderIndex(document.getElementById('app-main')); });
+navigateTo(currentRouteId());
+</script>
+</body>
+</html>
